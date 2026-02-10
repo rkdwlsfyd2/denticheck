@@ -1,0 +1,29 @@
+extend type Mutation {
+  startChatSession(channel: String!): ChatSession
+  sendChatMessage(
+    sessionId: ID!
+    content: String!
+    language: String
+  ): AiChatMessage
+}
+
+extend type Query {
+  getChatHistory(sessionId: ID!): [AiChatMessage]
+}
+
+type ChatSession {
+  id: ID!
+  channel: String!
+  createdDate: String
+  updatedDate: String
+}
+
+type AiChatMessage {
+  id: ID!
+  role: String!
+  content: String!
+  language: String!
+  citation: String
+  createdDate: String
+  updatedDate: String
+}

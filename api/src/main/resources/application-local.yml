@@ -1,0 +1,24 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://localhost:5432/denticheck
+    username: admin
+    password: admin_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+# AI Service Connection (Localhost access)
+# If running API in Docker, this should be http://ai:8000 (handled by env var override in docker-compose)
+# If running API in IDE, this connects to localhost:8000 (where AI service is exposed)
+ai:
+  client:
+    url: http://localhost:8000
+    timeout: 5000

@@ -1,0 +1,9 @@
+type Query {
+  # Health check or dummy field to initialize type
+  ping: String
+}
+
+type Mutation {
+  # Health check or dummy field to initialize type
+  ping: String
+}

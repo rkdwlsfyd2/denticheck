@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "denticheck-app",
+    "slug": "denticheck-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/shared/assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./src/shared/assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/shared/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./src/shared/assets/favicon.png"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-secure-store"
+    ]
+  }
+}

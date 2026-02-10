@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: denticheck-pg-local
+    environment:
+      POSTGRES_DB: denticheck
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - denticheck_db_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: denticheck-api-local
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=denticheck
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin_password
+    depends_on:
+      - db
+
+volumes:
+  denticheck_db_data:
