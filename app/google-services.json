@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1021358190527",
+    "project_id": "denticheck",
+    "storage_bucket": "denticheck.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1021358190527:android:0000000000000000",
+        "android_client_info": {
+          "package_name": "com.denticheck.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1021358190527-k664ga1ctlhjhe7kpkt7o8765s21n4lt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.denticheck.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "1021358190527-5pvv06ji3j626itofgsndt8cvf4q6nal.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "dummy-api-key-for-google-signin-only"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1021358190527-5pvv06ji3j626itofgsndt8cvf4q6nal.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

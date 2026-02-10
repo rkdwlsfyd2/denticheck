@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import axios from 'axios';
 
 interface User {
     id: string;
@@ -21,6 +23,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
+const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/graphql', '') || 'http://localhost:8080';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -29,6 +32,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         loadStorage();
+        // Web Client ID (Backend Server Client ID)
+        GoogleSignin.configure({
+            webClientId: '1021358190527-5pvv06ji3j626itofgsndt8cvf4q6nal.apps.googleusercontent.com',
+            scopes: ['profile', 'email'],
+        });
     }, []);
 
     const loadStorage = async () => {
@@ -48,12 +56,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const signInWithGoogle = async () => {
-        console.log('Google Sign-In logic will be implemented here');
-        // TODO: Implement Native Google Sign-In
-        // 1. Get idToken from Google SDK
-        // 2. Send idToken to backend
-        // 3. Receive access/refresh tokens and user info
-        // 4. Save to state and SecureStore
+        setIsLoading(true);
+        try {
+            await GoogleSignin.hasPlayServices();
+            const userInfo = await GoogleSignin.signIn();
+            const idToken = userInfo.data?.idToken;
+
+            if (!idToken) {
+                throw new Error('No ID Token found');
+            }
+
+            // Send ID Token to Backend
+            console.log('Sending ID Token to:', `${API_URL}/auth/mobile/google`);
+            const response = await axios.post(`${API_URL}/auth/mobile/google`, { idToken });
+
+            const { accessToken, refreshToken } = response.data;
+
+            // TODO: Decode JWT to get user info or fetch /me endpoint
+            // For now, use info from Google SDK
+            const user: User = {
+                id: userInfo.data.user.id,
+                email: userInfo.data.user.email,
+                name: userInfo.data.user.name || 'User',
+                photoUrl: userInfo.data.user.photo || undefined,
+            };
+
+            await handleLoginSuccess(user, accessToken);
+
+        } catch (error) {
+            console.error('Google Sign-In failed', error);
+            alert('구글 로그인 실패: ' + JSON.stringify(error));
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const signInDev = async () => {
@@ -64,15 +99,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             photoUrl: 'https://via.placeholder.com/150',
         };
         const mockToken = 'dev-token-xyz-123';
+        await handleLoginSuccess(mockUser, mockToken);
+    };
 
-        setToken(mockToken);
-        setUser(mockUser);
-
-        await SecureStore.setItemAsync(TOKEN_KEY, mockToken);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(mockUser));
+    const handleLoginSuccess = async (user: User, token: string) => {
+        setToken(token);
+        setUser(user);
+        await SecureStore.setItemAsync(TOKEN_KEY, token);
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
     };
 
     const signOut = async () => {
+        try {
+            await GoogleSignin.signOut();
+        } catch (e) {
+            console.log('Google signOut error', e);
+        }
         setToken(null);
         setUser(null);
         await SecureStore.deleteItemAsync(TOKEN_KEY);

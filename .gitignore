@@ -1,1 +1,53 @@
-.vscode
+# General
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+*.log
+tmp/
+
+# API (Java/Spring Boot)
+api/.gradle/
+api/build/
+api/out/
+api/bin/
+api/target/
+api/.env
+
+# App (React Native/Expo)
+app/node_modules/
+app/.expo/
+app/dist/
+app/web-build/
+app/npm-debug.log*
+app/yarn-debug.log*
+app/yarn-error.log*
+app/android/.gradle
+app/android/build
+app/android/app/build
+app/android/local.properties
+app/android/.cxx
+app/ios/.xcode.env.local
+app/ios/Pods/
+app/ios/build/
+
+# Android/iOS specific (User modified native code, so we KEEP android/ios folders but ignore build artifacts)
+# app/android/ and app/ios/ are NOT ignored because we have custom config like google-services.json (the structure)
+# However, we must ignore the actual secrets if they are not meant to be committed.
+# But google-services.json is often committed in private repos. Use caution.
+# For now, we ignore the root google-services if it's considered secret, but usually it's required for build.
+
+# AI (Python)
+ai/__pycache__/
+ai/*.py[cod]
+ai/venv/
+ai/.env
+ai/.pytest_cache/
+ai/models/   # Large model files
+
+# Console (React/Vite)
+console/node_modules/
+console/dist/
+console/.env
+console/.env.local

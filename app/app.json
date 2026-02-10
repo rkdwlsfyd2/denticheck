@@ -15,9 +15,12 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.denticheck.app"
     },
     "android": {
+      "package": "com.denticheck.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./src/shared/assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -28,7 +31,8 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }

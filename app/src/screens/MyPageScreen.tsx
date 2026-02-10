@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, ChevronRight, Heart, Bell, Shield, HelpCircle, LogOut, Calendar, Camera, AlertCircle, Palette, FileText, Settings } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../shared/providers/AuthProvider';
 
 type HealthRecord = {
     id: string;
@@ -16,6 +17,7 @@ type HealthRecord = {
 
 export default function MyPageScreen() {
     const navigation = useNavigation<any>();
+    const { signOut } = useAuth();
 
     const healthRecords: HealthRecord[] = [
         {
@@ -171,7 +173,7 @@ export default function MyPageScreen() {
 
                     {/* Logout Group */}
                     <View className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">
-                        <MenuItem icon={LogOut} label="로그아웃" onPress={() => navigation.replace('Login')} />
+                        <MenuItem icon={LogOut} label="로그아웃" onPress={signOut} />
                         <MenuItem icon={AlertCircle} label="회원탈퇴" isDestructive onPress={handleDeleteAccount} />
                     </View>
 
