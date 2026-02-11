@@ -1,0 +1,22 @@
+type Hospital {
+  id: ID!
+  name: String!
+  address: String
+  phone: String
+  description: String
+  latitude: Float
+  longitude: Float
+  homepageUrl: String
+  createdAt: String
+  updatedAt: String
+}
+
+extend type Query {
+  hospitals: [Hospital]
+  searchHospitals(
+    latitude: Float!
+    longitude: Float!
+    radius: Float = 5.0
+  ): [Hospital]
+  myFavoriteHospitals: [Hospital]
+}
