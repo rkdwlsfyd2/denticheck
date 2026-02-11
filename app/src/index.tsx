@@ -6,6 +6,7 @@ import { ColorThemeProvider } from './shared/providers/ColorThemeProvider';
 import { AuthProvider } from './shared/providers/AuthProvider';
 
 function App() {
+
     return (
         <ColorThemeProvider>
             <AuthProvider>

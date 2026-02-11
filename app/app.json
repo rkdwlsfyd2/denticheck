@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/shared/assets/icon.png",
+    "scheme": "denticheck",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./src/shared/assets/splash.png",
@@ -19,8 +20,7 @@
       "bundleIdentifier": "com.denticheck.app"
     },
     "android": {
-      "package": "com.denticheck.app",
-      "googleServicesFile": "./google-services.json",
+      "package": "com.denticheck.app.temp",
       "adaptiveIcon": {
         "foregroundImage": "./src/shared/assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -32,6 +32,7 @@
     "plugins": [
       "expo-asset",
       "expo-secure-store",
+      "expo-web-browser",
       "@react-native-google-signin/google-signin"
     ]
   }

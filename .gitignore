@@ -1,4 +1,7 @@
+# ----------------------------
 # General
+# ----------------------------
+
 .vscode/
 .idea/
 .DS_Store
@@ -7,7 +10,10 @@
 *.log
 tmp/
 
+# ----------------------------
 # API (Java/Spring Boot)
+# ----------------------------
+
 api/.gradle/
 api/build/
 api/out/
@@ -15,30 +21,71 @@ api/bin/
 api/target/
 api/.env
 
+# ----------------------------
 # App (React Native/Expo)
+# ----------------------------
+
+# Node / JS (app)
 app/node_modules/
-app/.expo/
-app/dist/
-app/web-build/
 app/npm-debug.log*
 app/yarn-debug.log*
 app/yarn-error.log*
-app/android/.gradle
-app/android/build
-app/android/app/build
+app/pnpm-debug.log*
+app/.eslintcache
+app/*.log
+
+# Expo (app)
+app/.expo/
+app/.expo-shared/
+app/dist/
+app/expo-env.d.ts
+app/web-build/
+
+# Env (Secrets) (app)
+app/.env
+app/.env.*
+!app/.env.example
+
+# OS / Editor (app)
+app/.DS_Store
+app/Thumbs.db
+app/.idea/
+app/.vscode/
+app/*.iml
+
+# React Native / Expo native folders (prebuild generated) (app)
+# 팀 정책: prebuild로 생성 => 커밋하지 않음
+app/android/
+app/ios/
+
+# Android build outputs / local configs (app)
+app/android/.gradle/
 app/android/local.properties
-app/android/.cxx
-app/ios/.xcode.env.local
-app/ios/Pods/
+app/android/**/build/
+app/**/*.apk
+app/**/*.aab
+
+# Keystore / signing files (NEVER COMMIT)
+app/**/*.keystore
+app/**/*.jks
+app/**/*.p12
+app/**/*.pem
+
+# google services
+app/android/app/google-services.json
+app/ios/GoogleService-Info.plist
+
+# iOS build outputs (app)
 app/ios/build/
+app/ios/Pods/
+app/ios/Podfile.lock
+app/*.xcworkspace
+app/*.xcuserstate
 
-# Android/iOS specific (User modified native code, so we KEEP android/ios folders but ignore build artifacts)
-# app/android/ and app/ios/ are NOT ignored because we have custom config like google-services.json (the structure)
-# However, we must ignore the actual secrets if they are not meant to be committed.
-# But google-services.json is often committed in private repos. Use caution.
-# For now, we ignore the root google-services if it's considered secret, but usually it's required for build.
-
+# ----------------------------
 # AI (Python)
+# ----------------------------
+
 ai/__pycache__/
 ai/*.py[cod]
 ai/venv/
@@ -46,7 +93,10 @@ ai/.env
 ai/.pytest_cache/
 ai/models/   # Large model files
 
+# ----------------------------
 # Console (React/Vite)
+# ----------------------------
+
 console/node_modules/
 console/dist/
 console/.env
