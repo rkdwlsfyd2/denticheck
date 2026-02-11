@@ -5,6 +5,7 @@ import com.denticheck.api.domain.hospital.service.HospitalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 
 import java.util.List;
@@ -30,8 +31,7 @@ public class HospitalResolver {
 
     @QueryMapping
     public List<HospitalEntity> myFavoriteHospitals() {
-        String username = org.springframework.security.core.context.SecurityContextHolder.getContext()
-                .getAuthentication().getName();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return hospitalService.getMyFavoriteHospitals(username);
     }
 }
