@@ -9,9 +9,8 @@ import {
   TouchableOpacity,
   Animated,
 } from "react-native";
-import { Send, Bot, User, Sparkles, RefreshCcw } from "lucide-react-native";
+import { Send, Bot, RefreshCcw } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 
 import { useColorTheme } from "../shared/providers/ColorThemeProvider";
 import {

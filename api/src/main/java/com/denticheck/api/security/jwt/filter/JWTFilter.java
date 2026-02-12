@@ -38,7 +38,7 @@ public class JWTFilter extends OncePerRequestFilter {
         }
 
         if (!authorization.startsWith("Bearer ")) {
-            throw new ServletException("Invalid JWT token");
+            throw new ServletException("유효하지 않은 JWT 토큰 형식입니다.");
         }
 
         // 토큰 파싱

@@ -10,12 +10,14 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class JwtServiceImpl implements JwtService {
 
     private final RefreshRepository refreshRepository;
@@ -150,7 +152,7 @@ public class JwtServiceImpl implements JwtService {
     public void removeRefresh(String refreshToken) {
         int deleted = refreshRepository.deleteByRefresh(refreshToken);
         if (deleted == 0) {
-            throw new RuntimeException("refreshToken이 DB에 없습니다. 재사용/탈취 가능성");
+            log.warn("DB에 존재하지 않는 refreshToken 삭제 시도. 이미 삭제되었거나 DB가 초기화되었을 가능성이 있습니다.");
         }
     }
 

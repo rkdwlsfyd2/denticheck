@@ -20,7 +20,7 @@ public class AiHttpClient implements AiClient {
 
     @Override
     public AiQualityResponse checkQuality(AiQualityRequest request) {
-        log.info("Calling AI service checkQuality with storageKey: {}", request.getStorageKey());
+        log.info("AI 서비스의 checkQuality를 호출합니다. storageKey: {}", request.getStorageKey());
         return restClient.post()
                 .uri("/v1/quality")
                 .contentType(MediaType.APPLICATION_JSON)

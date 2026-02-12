@@ -28,4 +28,5 @@ public class ChatResponse {
     private Map<String, Object> citation;
     private Map<String, Object> payload;
     private LocalDateTime createdDate;
+    private LocalDateTime updatedDate;
 }
