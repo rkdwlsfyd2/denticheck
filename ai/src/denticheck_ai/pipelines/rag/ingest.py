@@ -25,22 +25,37 @@ from langchain_core.documents import Document
 # 환경 변수 로드
 load_dotenv()
 
+"""
+[파일 역할]
+JSON 형식의 치과 의학 지식을 벡터 데이터베이스(Milvus)에 적재(Ingest)하는 스크립트입니다.
+텍스트 데이터를 임베딩 모델을 통해 벡터로 변환하여 검색 가능한 상태로 만듭니다.
+
+[실행 방법]
+python -m src.denticheck_ai.pipelines.rag.ingest
+"""
+
+import json
+import os
+from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_milvus import Milvus
+
 def ingest_data():
     """
     JSON 지식 베이스 데이터를 읽어 임베딩 과정을 거친 후 Milvus DB에 적재합니다.
-    기존 데이터가 있을 경우 삭제하고 새로 적재(drop_old=True)합니다.
+    기존 데이터가 있을 경우 삭제하고 새로 적재(drop_old=True)하여 정합성을 유지합니다.
     """
-    json_path = "data/snudh_knowledge.json"
+    json_path = "data/snudh_knowledge.json" # 서울대치과병원 지식 데이터 경로
     
     if not os.path.exists(json_path):
         print(f"[에러] {json_path} 파일이 존재하지 않습니다.")
         return
 
-    # 1. 데이터 로드
+    # 1. 파일에서 데이터 로드
     with open(json_path, "r", encoding="utf-8") as f:
         knowledge_base = json.load(f)
 
-    # 2. Document 객체로 변환
+    # 2. LangChain Document 객체로 변환 (메타데이터 포함)
     documents = []
     for item in knowledge_base:
         if not item['content']: continue
@@ -57,22 +72,21 @@ def ingest_data():
 
     print(f"총 {len(documents)}건의 문서를 준비했습니다.")
 
-    # 3. 로컬 임베딩 모델 설정 (OpenAI 대신 로컬 모델 사용)
-    # 한국어 성능이 우수한 jhgan/ko-sroberta-multitask 모델 사용
-    print("로컬 임베딩 모델 로드 중 (처음 실행 시 수백 MB 다운로드가 필요할 수 있습니다)...")
+    # 3. 로컬 임베딩 모델 설정
+    # 한국어 성능이 검증된 'jhgan/ko-sroberta-multitask' 모델을 사용하여 텍스트를 벡터로 수치화합니다.
+    print("로컬 임베딩 모델 로드 중 (최초 실행 시 다운로드 진행)...")
     embeddings = HuggingFaceEmbeddings(
         model_name="jhgan/ko-sroberta-multitask",
-        model_kwargs={'device': 'cpu'}, # GPU가 있다면 'cuda'로 변경 가능
+        model_kwargs={'device': 'cpu'}, # GPU 활용 시 'cuda'로 변경 권장
         encode_kwargs={'normalize_embeddings': True}
     )
 
-    # 4. Milvus 연결 및 적재
-    # Standalone일 경우 uri는 'http://localhost:19530' 형태, 
-    # Lite일 경우 './data/milvus_dental.db' 형태입니다.
+    # 4. Milvus 연결 및 데이터 저장
+    # Milvus Lite(로컬 파일 방식) 또는 독립 실행형 서버에 연결합니다.
     milvus_uri = os.getenv("MILVUS_URI", "./data/milvus_dental.db")
     collection_name = os.getenv("COLLECTION_NAME", "dental_knowledge")
 
-    print(f"Milvus 연결 중... (URI: {milvus_uri})")
+    print(f"Milvus 연결 및 데이터 적재 시작... (타겟: {milvus_uri})")
     
     try:
         vector_db = Milvus.from_documents(
@@ -82,9 +96,9 @@ def ingest_data():
                 "uri": milvus_uri,
             },
             collection_name=collection_name,
-            drop_old=True # 기존 데이터 삭제 후 새로 적재
+            drop_old=True # 색인이 중복되지 않도록 기존 데이터를 비우고 새로 생성
         )
-        print(f"성공적으로 {len(documents)}건의 지식을 Milvus({milvus_uri})에 적재했습니다.")
+        print(f"성공적으로 {len(documents)}건의 지식을 Milvus에 적재했습니다.")
     except Exception as e:
         print(f"[에러] Milvus 적재 실패: {e}")
 
