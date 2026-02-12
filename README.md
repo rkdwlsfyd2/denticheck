@@ -68,6 +68,9 @@ cd api
 
 # Mac/Linux
 ./gradlew bootRun --args='--spring.profiles.active=local'
+
+Expo Go로 실행 (에뮬레이터/Android Studio 없이 가능)
+npx expo start --tunnel
 ```
 
 - API 서버: `http://localhost:8080`
