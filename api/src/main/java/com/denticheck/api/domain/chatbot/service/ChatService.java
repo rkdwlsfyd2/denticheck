@@ -7,6 +7,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.List;
 import java.util.UUID;
 
+import com.denticheck.api.domain.chatbot.dto.ChatRequest;
+import com.denticheck.api.domain.chatbot.dto.ChatResponse;
+
 public interface ChatService {
 
     ChatSessionEntity startSession(UUID userId, String channel);
@@ -15,5 +18,5 @@ public interface ChatService {
 
     SseEmitter subscribe(UUID sessionId);
 
-    AiChatMessageEntity processMessage(UUID sessionId, String content, String language);
+    ChatResponse processMessage(ChatRequest request);
 }

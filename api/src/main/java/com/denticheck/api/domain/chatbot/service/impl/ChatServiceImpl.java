@@ -5,6 +5,8 @@ import com.denticheck.api.domain.chatbot.entity.ChatSessionEntity;
 import com.denticheck.api.domain.chatbot.repository.AiChatMessageRepository;
 import com.denticheck.api.domain.chatbot.repository.ChatSessionRepository;
 import com.denticheck.api.domain.chatbot.service.ChatService;
+import com.denticheck.api.domain.chatbot.dto.ChatRequest;
+import com.denticheck.api.domain.chatbot.dto.ChatResponse;
 import com.denticheck.api.domain.user.entity.UserEntity;
 import com.denticheck.api.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -12,6 +14,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.denticheck.api.domain.chatbot.entity.ChatRole;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -53,12 +56,15 @@ public class ChatServiceImpl implements ChatService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        ChatSessionEntity session = ChatSessionEntity.builder()
-                .user(user)
-                .channel(channel)
-                .build();
-
-        return chatSessionRepository.save(session);
+        // Check for existing active session
+        return chatSessionRepository.findByUserIdAndChannelAndEndedAtIsNull(userId, channel)
+                .orElseGet(() -> {
+                    ChatSessionEntity session = ChatSessionEntity.builder()
+                            .user(user)
+                            .channel(channel)
+                            .build();
+                    return chatSessionRepository.save(session);
+                });
     }
 
     @Override
@@ -81,14 +87,18 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
-    public AiChatMessageEntity processMessage(UUID sessionId, String content, String language) {
+    public ChatResponse processMessage(ChatRequest request) {
+        UUID sessionId = request.getSessionId();
+        String content = request.getContent();
+        String language = request.getLanguage();
+
         ChatSessionEntity session = chatSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 
         // 1. Save User Message
         AiChatMessageEntity userMessage = AiChatMessageEntity.builder()
                 .session(session)
-                .role("user")
+                .role(ChatRole.USER)
                 .content(content)
                 .language(language)
                 .build();
@@ -99,7 +109,7 @@ public class ChatServiceImpl implements ChatService {
 
         // 3. Parse AI Response
         String aiContent;
-        String citation = null;
+        Map<String, Object> citation = null;
         try {
             JsonNode root = objectMapper.readTree(aiResponseJson);
             // Assuming simplified response structure for now, adjust based on actual AI
@@ -114,7 +124,13 @@ public class ChatServiceImpl implements ChatService {
                 if (root.has("citation")) {
                     JsonNode citationNode = root.get("citation");
                     if (citationNode != null && !citationNode.isNull()) {
-                        citation = objectMapper.writeValueAsString(citationNode);
+                        // Convert JsonNode to JSON String for now, but Entity expects Map.
+                        // We need to parse it to Map.
+                        try {
+                            citation = objectMapper.convertValue(citationNode, Map.class);
+                        } catch (IllegalArgumentException e) {
+                            log.warn("Failed to convert citation to Map", e);
+                        }
                     }
                 }
                 // Handle AI Report if present
@@ -130,7 +146,7 @@ public class ChatServiceImpl implements ChatService {
         // 4. Save Assistant Message
         AiChatMessageEntity aiMessage = AiChatMessageEntity.builder()
                 .session(session)
-                .role("assistant")
+                .role(ChatRole.ASSISTANT)
                 .content(aiContent)
                 .language(language)
                 .citation(citation)
@@ -149,7 +165,15 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
-        return savedAiMessage;
+        return ChatResponse.builder()
+                .id(savedAiMessage.getId())
+                .sessionId(savedAiMessage.getSession().getId())
+                .role(savedAiMessage.getRole())
+                .content(savedAiMessage.getContent())
+                .language(savedAiMessage.getLanguage())
+                .citation(savedAiMessage.getCitation())
+                .createdDate(savedAiMessage.getCreatedAt())
+                .build();
     }
 
     private String callAiServer(UUID sessionId, String content, String language) {

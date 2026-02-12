@@ -1,6 +1,5 @@
 package com.denticheck.api.graphql.resolver;
 
-import com.denticheck.api.domain.chatbot.entity.AiChatMessageEntity;
 import com.denticheck.api.domain.chatbot.entity.ChatSessionEntity;
 import com.denticheck.api.domain.chatbot.service.ChatService;
 import com.denticheck.api.domain.user.repository.UserRepository;
@@ -39,15 +38,25 @@ public class ChatResolver {
 
     @QueryMapping
     @PreAuthorize("hasRole('USER')")
-    public List<AiChatMessageEntity> getChatHistory(@Argument("sessionId") UUID sessionId) {
-        return chatService.getChatHistory(sessionId);
+    public List<com.denticheck.api.domain.chatbot.dto.ChatResponse> getChatHistory(
+            @Argument("sessionId") UUID sessionId) {
+        return chatService.getChatHistory(sessionId).stream()
+                .map(entity -> com.denticheck.api.domain.chatbot.dto.ChatResponse.builder()
+                        .id(entity.getId())
+                        .sessionId(entity.getSession().getId())
+                        .role(entity.getRole())
+                        .content(entity.getContent())
+                        .language(entity.getLanguage())
+                        .citation(entity.getCitation())
+                        .createdDate(entity.getCreatedAt())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @MutationMapping
     @PreAuthorize("hasRole('USER')")
-    public AiChatMessageEntity sendChatMessage(@Argument("sessionId") UUID sessionId,
-            @Argument("content") String content,
-            @Argument("language") String language) {
-        return chatService.processMessage(sessionId, content, language);
+    public com.denticheck.api.domain.chatbot.dto.ChatResponse sendChatMessage(
+            @Argument("request") com.denticheck.api.domain.chatbot.dto.ChatRequest request) {
+        return chatService.processMessage(request);
     }
 }
