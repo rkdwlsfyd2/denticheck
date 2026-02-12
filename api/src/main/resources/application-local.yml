@@ -11,11 +11,11 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
 
 # AI Service Connection (Localhost access)
 # If running API in Docker, this should be http://ai:8000 (handled by env var override in docker-compose)

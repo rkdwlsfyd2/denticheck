@@ -9,19 +9,20 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
 
 @Component
 public class JWTUtil {
 
     private final SecretKey secretKey;
-    private final Long accessTokenExpiresIn;
-    private final Long refreshTokenExpiresIn;
+    private final Duration accessTokenExpiresIn;
+    private final Duration refreshTokenExpiresIn;
 
     public JWTUtil(
             @Value("${jwt.secret-key}") String secretKeyString,
-            @Value("${jwt.accessTokenExpiresIn}") Long accessTokenExpiresIn,
-            @Value("${jwt.refreshTokenExpiresIn}") Long refreshTokenExpiresIn) {
+            @Value("${jwt.accessTokenExpiresIn}") Duration accessTokenExpiresIn,
+            @Value("${jwt.refreshTokenExpiresIn}") Duration refreshTokenExpiresIn) {
         this.secretKey = new SecretKeySpec(secretKeyString.getBytes(StandardCharsets.UTF_8),
                 Jwts.SIG.HS256.key().build().getAlgorithm());
         this.accessTokenExpiresIn = accessTokenExpiresIn;
@@ -78,7 +79,7 @@ public class JWTUtil {
     // JWT(Access/Refresh) 생성
     public String createJWT(String username, String role, Boolean isAccess) {
         long now = System.currentTimeMillis();
-        long expiry = isAccess ? accessTokenExpiresIn : refreshTokenExpiresIn;
+        long expiry = isAccess ? accessTokenExpiresIn.toMillis() : refreshTokenExpiresIn.toMillis();
         String type = isAccess ? "access" : "refresh";
 
         return Jwts.builder()

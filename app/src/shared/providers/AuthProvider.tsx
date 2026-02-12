@@ -11,10 +11,6 @@ import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import axios from "axios";
 
-const ACCESS_TOKEN_KEY = "auth_access_token";
-const REFRESH_TOKEN_KEY = "auth_refresh_token";
-const USER_KEY = "auth_user";
-
 const API_SERVER_URL = process.env.EXPO_PUBLIC_API_SERVER_URL;
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 // iOS까지 Dev Build로 네이티브 Sign-In 할 거면 보통 iosClientId도 필요할 수 있어(선택)
@@ -28,11 +24,9 @@ if (!GOOGLE_WEB_CLIENT_ID)
 const isExpoGo = Constants.executionEnvironment === "storeClient";
 
 export interface AuthUser {
-  id?: string;
   email?: string;
   name?: string;
   picture?: string;
-  provider?: "google" | "dev";
 }
 
 type AuthContextValue = {
@@ -64,33 +58,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(accessToken);
     if (u) setUser(u);
 
-    await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
+    await SecureStore.setItemAsync("accessToken", accessToken);
 
     if (refreshToken) {
-      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+      await SecureStore.setItemAsync("refreshToken", refreshToken);
     } else {
-      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+      await SecureStore.deleteItemAsync("refreshToken");
     }
 
     if (u) {
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(u));
+      await SecureStore.setItemAsync("user", JSON.stringify(u));
     } else {
-      await SecureStore.deleteItemAsync(USER_KEY);
+      await SecureStore.deleteItemAsync("user");
     }
   };
 
   const clearSession = async () => {
     setToken(null);
     setUser(null);
-    await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
-    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-    await SecureStore.deleteItemAsync(USER_KEY);
+    await SecureStore.deleteItemAsync("accessToken");
+    await SecureStore.deleteItemAsync("refreshToken");
+    await SecureStore.deleteItemAsync("user");
   };
 
   const loadStorage = async () => {
     try {
-      const storedToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
-      const storedUser = await SecureStore.getItemAsync(USER_KEY);
+      const storedToken = await SecureStore.getItemAsync("accessToken");
+      const storedUser = await SecureStore.getItemAsync("user");
 
       if (storedToken) setToken(storedToken);
       if (storedUser) setUser(JSON.parse(storedUser));
@@ -105,21 +99,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadStorage();
   }, []);
 
-  const exchangeIdTokenToJwt = async (idToken: string) => {
+  const exchangeIdTokenToJwt = async (idToken: string, user: AuthUser) => {
     // api 서버에서 idToken 검증 후 JWT(access/refresh) 발급
     const jwtRes = await axios.post(`${API_SERVER_URL}/auth/mobile/google`, {
       idToken,
     });
     console.log("JWT RES DATA:", jwtRes.data);
-    const { accessToken, refreshToken, user: serverUser } = jwtRes.data ?? {};
+    const { accessToken, refreshToken } = jwtRes.data ?? {};
 
     if (!accessToken) throw new Error("Server did not return accessToken");
-    console.log("serverUser : " + serverUser);
+    console.log("serverUser : ", user);
 
     // 서버가 user를 같이 주면 그걸 쓰고, 아니면 최소 provider만 저장
-    const mergedUser: AuthUser = serverUser
-      ? { ...serverUser, provider: "google" }
-      : { provider: "google" };
+    const mergedUser: AuthUser = user;
 
     await saveSession(accessToken, refreshToken, mergedUser);
   };
@@ -135,8 +127,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { GoogleSignin, statusCodes } = mod;
 
       if (!googleConfiguredRef.current) {
-        console.log("No googleConfiguredRef.current");
-        console.log("GOOGLE_WEB_CLIENT_ID : " + GOOGLE_WEB_CLIENT_ID);
         GoogleSignin.configure({
           webClientId: GOOGLE_WEB_CLIENT_ID,
           offlineAccess: false,
@@ -149,11 +139,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       const userInfo = await GoogleSignin.signIn();
-      console.log("userInfo : ", userInfo);
+      const user: AuthUser = {
+        email: userInfo.data?.user.email,
+        name: userInfo.data?.user.name,
+        picture: userInfo.data?.user.photo,
+      };
 
       // ✅ 이걸로 idToken 다시 요청 가능(가끔 signIn 결과에 없을 때가 있음)
       const tokens = await GoogleSignin.getTokens().catch(() => null);
-      console.log("tokens : ", tokens);
 
       const idToken =
         userInfo?.idToken ||
@@ -163,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!idToken)
         throw new Error("No idToken. Check webClientId / console settings.");
 
-      await exchangeIdTokenToJwt(idToken);
+      await exchangeIdTokenToJwt(idToken, user);
     } catch (e: any) {
       try {
         const mod = await import("@react-native-google-signin/google-signin");
@@ -185,11 +178,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const mockUser: AuthUser = {
-        id: "dev-user-001",
         email: "dev@denticheck.com",
         name: "Dev User",
         picture: "https://via.placeholder.com/150",
-        provider: "dev",
       };
       const mockAccessToken = "dev-access-token";
       const mockRefreshToken = "dev-refresh-token";
@@ -228,6 +219,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return fetch(url, { ...options, headers });
   };
+
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use(
+      (config) => {
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error),
+    );
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, [token]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

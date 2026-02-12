@@ -10,10 +10,8 @@ spring:
         enabled: true
 jwt:
   secret-key: himynameiskimjihunmyyoutubechann
-  # 1시간 (ms)
-  accessTokenExpiresIn: 3600000
-  # 7일 (ms)
-  refreshTokenExpiresIn: 604800000
+  accessTokenExpiresIn: 1h
+  refreshTokenExpiresIn: 30d
 
 logging:
   level:
