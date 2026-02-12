@@ -1,25 +1,21 @@
 package com.denticheck.api.domain.chatbot.dto;
 
-import lombok.AllArgsConstructor;
+import com.denticheck.api.domain.chatbot.entity.ChatMessageType;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import com.denticheck.api.domain.chatbot.entity.ChatMessageType;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.util.Map;
-import java.util.UUID;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ChatRequest {
-    private UUID sessionId;
+public class ChatAppRequest {
     private String content;
     private ChatMessageType messageType;
     private Map<String, Object> payload;
-    private String language;
 }

@@ -128,6 +128,9 @@ public class JwtServiceImpl implements JwtService {
     @Transactional
     @Override
     public void addRefresh(String username, String refreshToken) {
+        // 단일 세션(계정당 기기 1개) 허용을 위해 기존 토큰 모두 삭제
+        removeRefreshUser(username);
+
         refreshRepository.save(RefreshEntity.builder()
                 .username(username)
                 .refresh(refreshToken)

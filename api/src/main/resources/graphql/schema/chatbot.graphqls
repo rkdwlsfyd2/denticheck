@@ -1,6 +1,7 @@
 extend type Mutation {
   startChatSession(channel: String!): ChatSession
-  sendChatMessage(request: ChatRequest!): ChatResponse
+  sendChatMessage(channel: String!, request: ChatAppRequest!): ChatAppResponse
+  endChatSession(channel: String!): Boolean
 }
 
 extend type Query {
@@ -17,6 +18,8 @@ type ChatSession {
 input ChatRequest {
   sessionId: ID!
   content: String!
+  messageType: String
+  payload: String
   language: String
 }
 
@@ -25,7 +28,25 @@ type ChatResponse {
   sessionId: ID!
   role: String!
   content: String!
+  messageType: String!
+  payload: String
   language: String!
   citation: String
   createdDate: String
+  updatedDate: String
+}
+
+input ChatAppRequest {
+  content: String!
+  messageType: String
+  payload: String
+}
+
+type ChatAppResponse {
+  sessionId: ID!
+  userMessageId: ID!
+  assistantMessageId: ID!
+  assistantContent: String!
+  messageType: String!
+  payload: String
 }

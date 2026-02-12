@@ -1,12 +1,11 @@
 package com.denticheck.api.domain.chatbot.dto;
 
-import lombok.AllArgsConstructor;
+import com.denticheck.api.domain.chatbot.entity.ChatMessageType;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import com.denticheck.api.domain.chatbot.entity.ChatMessageType;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.util.Map;
 import java.util.UUID;
@@ -16,10 +15,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ChatRequest {
+public class ChatAppResponse {
     private UUID sessionId;
-    private String content;
+    private UUID userMessageId;
+    private UUID assistantMessageId;
+    private String assistantContent;
     private ChatMessageType messageType;
     private Map<String, Object> payload;
-    private String language;
 }

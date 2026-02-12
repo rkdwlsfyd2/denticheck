@@ -58,6 +58,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     u?: AuthUser,
   ) => {
     setToken(accessToken);
+    await SecureStore.setItemAsync("accessToken", accessToken);
+    if (refreshToken) {
+      await SecureStore.setItemAsync("refreshToken", refreshToken);
+    }
     if (u) {
       setUser(u); // State update
       await SecureStore.setItemAsync("user", JSON.stringify(u));
@@ -81,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (storedToken) setToken(storedToken);
       if (storedUser) setUser(JSON.parse(storedUser));
     } catch (e) {
-      console.error("Failed to load auth storage:", e);
+      console.error("Failed to load auth auth storage:", e);
     } finally {
       setIsLoading(false);
     }
@@ -96,11 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const jwtRes = await axios.post(`${API_SERVER_URL}/auth/mobile/google`, {
       idToken,
     });
-    console.log("JWT RES DATA:", jwtRes.data);
+
     const { accessToken, refreshToken, user: serverUser } = jwtRes.data ?? {};
 
     if (!accessToken) throw new Error("Server did not return accessToken");
-    console.log("serverUser : ", serverUser);
 
     // 서버가 user를 같이 주면 그걸 쓰고, 아니면 최소 provider만 저장
     const mergedUser: AuthUser = serverUser
@@ -195,15 +198,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setIsLoading(true);
     try {
-      // Dev Build에서만 Google 로그아웃 시도
+      const refreshToken = await SecureStore.getItemAsync("refreshToken");
+
+      // 1. 서버 로그아웃 호출 (DB 토큰 무효화)
+      if (refreshToken) {
+        try {
+          // Spring Security LogoutHandler는 기본적으로 /logout POST 요청을 처리함
+          await axios.post(`${API_SERVER_URL}/logout`, { refreshToken });
+        } catch (serverError) {
+          console.log(
+            "Server logout failed, but proceeding with local logout",
+            serverError,
+          );
+        }
+      }
+
+      // 2. 구글 모듈 로그아웃 (Dev Build 전용)
       if (!isExpoGo) {
         try {
           const mod = await import("@react-native-google-signin/google-signin");
           await mod.GoogleSignin.signOut();
         } catch {
-          // 구글 모듈 로그아웃 실패는 무시하고 세션만 정리
+          // 구글 모듈 로그아웃 실패는 무시
         }
       }
+
+      // 3. 로컬 세션 클리어
       await clearSession();
     } finally {
       setIsLoading(false);

@@ -39,4 +39,13 @@ public class AiChatMessageEntity extends BaseTimeEntity {
     @Column(name = "citation", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private java.util.Map<String, Object> citation;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "message_type", nullable = false, length = 20)
+    @Builder.Default
+    private ChatMessageType messageType = ChatMessageType.TEXT;
+
+    @Column(name = "payload", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private java.util.Map<String, Object> payload;
 }

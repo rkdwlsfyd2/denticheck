@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import com.denticheck.api.domain.chatbot.entity.ChatMessageType;
 import com.denticheck.api.domain.chatbot.entity.ChatRole;
 
 import java.time.LocalDateTime;
@@ -21,8 +22,10 @@ public class ChatResponse {
     private UUID id;
     private UUID sessionId;
     private ChatRole role;
+    private ChatMessageType messageType;
     private String content;
     private String language;
     private Map<String, Object> citation;
+    private Map<String, Object> payload;
     private LocalDateTime createdDate;
 }
