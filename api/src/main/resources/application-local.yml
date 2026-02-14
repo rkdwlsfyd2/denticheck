@@ -16,6 +16,9 @@ spring:
         properties:
             hibernate:
                 format_sql: false
+    output:
+        ansi:
+            enabled: ALWAYS
 
 # AI Service Connection (Localhost access)
 # If running API in Docker, this should be http://ai:8000 (handled by env var override in docker-compose)

@@ -36,6 +36,7 @@ public class JwtServiceImpl implements JwtService {
     @Transactional
     @Override
     public JWTResponseDTO cookie2Header(HttpServletRequest request, HttpServletResponse response) {
+        log.debug("cookie2Header() 실행");
 
         // 쿠키 리스트에서 Refresh 쿠키 확인
         Cookie[] cookies = request.getCookies();
@@ -96,6 +97,7 @@ public class JwtServiceImpl implements JwtService {
     @Transactional
     @Override
     public JWTResponseDTO refreshRotate(RefreshRequestDTO dto) {
+        log.debug("refreshRotate() 실행");
 
         String refreshToken = dto.getRefreshToken();
 
@@ -130,6 +132,7 @@ public class JwtServiceImpl implements JwtService {
     @Transactional
     @Override
     public void addRefresh(String username, String refreshToken) {
+        log.debug("addRefresh() 실행");
         // 단일 세션(계정당 기기 1개) 허용을 위해 기존 토큰 모두 삭제
         removeRefreshUser(username);
 
@@ -143,6 +146,7 @@ public class JwtServiceImpl implements JwtService {
     @Transactional(readOnly = true)
     @Override
     public Boolean existRefresh(String refreshToken) {
+        log.debug("existRefresh() 실행");
         return refreshRepository.existsByRefresh(refreshToken);
     }
 
@@ -150,6 +154,7 @@ public class JwtServiceImpl implements JwtService {
     @Transactional
     @Override
     public void removeRefresh(String refreshToken) {
+        log.debug("removeRefresh() 실행");
         int deleted = refreshRepository.deleteByRefresh(refreshToken);
         if (deleted == 0) {
             log.warn("DB에 존재하지 않는 refreshToken 삭제 시도. 이미 삭제되었거나 DB가 초기화되었을 가능성이 있습니다.");
@@ -159,6 +164,7 @@ public class JwtServiceImpl implements JwtService {
     // 특정 유저 Refresh 토큰 모두 삭제 (탈퇴)
     @Override
     public void removeRefreshUser(String username) {
+        log.debug("removeRefreshUser() 실행");
         refreshRepository.deleteByUsername(username);
     }
 }

@@ -24,6 +24,7 @@ public class AiHttpClient implements AiClient {
 
     @Override
     public AiQualityResponse checkQuality(AiQualityRequest request) {
+        log.debug("checkQuality() 실행");
         log.info("AI 서비스의 checkQuality를 호출합니다. storageKey: {}", request.getStorageKey());
         return restClient.post()
                 .uri("/v1/quality")
@@ -35,20 +36,15 @@ public class AiHttpClient implements AiClient {
 
     @Override
     public String askChat(AiChatAskRequest request) {
-        log.info("AI 서비스의 askChat를 호출합니다. content: {}", request.getContent());
+        log.debug("askChat() 실행");
         ResponseEntity<AiChatAskResponse> entity = restClient.post()
                 .uri("/v1/chat/ask")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
-                .toEntity(AiChatAskResponse.class); // ✅ raw로 받기
+                .toEntity(AiChatAskResponse.class);
 
-        log.info("AI status={}", entity.getStatusCode());
-        log.info("AI content-type={}", entity.getHeaders().getContentType());
-        log.info("AI raw body={}", entity.getBody().toString());
-
-        // 일단은 raw를 그대로 반환하거나, 다음 단계에서 파싱
         return entity.getBody() != null ? entity.getBody().getAnswer() : null;
     }
 }
