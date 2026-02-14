@@ -10,6 +10,7 @@
 *.swo
 *.log
 tmp/
+.agent/
 
 # ----------------------------
 # API (Java/Spring Boot)
@@ -21,6 +22,10 @@ api/out/
 api/bin/
 api/target/
 api/.env
+# api 폴더에서 실행 시
+api/reports/*.pdf
+# root 폴더에서 실행 시
+reports/*.pdf
 
 # ----------------------------
 # App (React Native/Expo)

@@ -11,6 +11,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.time.Duration;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +26,8 @@ public class JwtServiceImpl implements JwtService {
     private final RefreshRepository refreshRepository;
     private final JWTUtil jwtUtil;
 
-    @Value("${admin.web.refresh-cookie-max-age-seconds}")
-    int refreshCookieMaxAgeSeconds;
+    @Value("${admin.web.refresh-cookie-max-age}")
+    Duration refreshCookieMaxAge;
 
     @Value("${admin.web.refresh-cookie-secure}")
     boolean refreshCookieSecure;
@@ -87,7 +90,7 @@ public class JwtServiceImpl implements JwtService {
         refreshCookie.setHttpOnly(refreshCookieHttpOnly);
         refreshCookie.setSecure(refreshCookieSecure);
         refreshCookie.setPath("/");
-        refreshCookie.setMaxAge(refreshCookieMaxAgeSeconds);
+        refreshCookie.setMaxAge(Math.toIntExact(refreshCookieMaxAge.toSeconds()));
         response.addCookie(refreshCookie);
 
         return new JWTResponseDTO(newAccessToken, newRefreshToken, null);

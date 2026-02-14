@@ -13,6 +13,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 
 @Component
 @Qualifier("SocialSuccessHandler")
@@ -25,8 +26,8 @@ public class SocialSuccessHandler implements AuthenticationSuccessHandler {
     @Value("${admin.web.login-success-redirect}")
     private String adminLoginSuccessRedirect;
 
-    @Value("${admin.web.refresh-cookie-max-age-seconds}")
-    private int refreshCookieMaxAgeSeconds;
+    @Value("${admin.web.refresh-cookie-max-age}")
+    private Duration refreshCookieMaxAge;
 
     @Value("${admin.web.refresh-cookie-secure}")
     private boolean refreshCookieSecure;
@@ -49,7 +50,7 @@ public class SocialSuccessHandler implements AuthenticationSuccessHandler {
         refreshCookie.setHttpOnly(true);
         refreshCookie.setSecure(refreshCookieSecure);
         refreshCookie.setPath("/");
-        refreshCookie.setMaxAge(refreshCookieMaxAgeSeconds);
+        refreshCookie.setMaxAge(Math.toIntExact(refreshCookieMaxAge.toSeconds()));
 
         response.addCookie(refreshCookie);
 

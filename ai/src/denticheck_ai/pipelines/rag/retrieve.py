@@ -52,32 +52,61 @@ class MilvusRetriever:
 
     def retrieve_context(self, query: str, top_k: int = 3) -> List[str]:
         """
-        질문과 가장 유사한 상위 k개의 지식 문장을 검색하여 반환합니다.
-        
+        질문과 가장 유사한 상위 k개의 지식 문장을 검색하여 반환합니다. (Sync)
+
         Args:
-            query (str): 사용자 질문 (예: "치석은 어떻게 생겨요?")
-            top_k (int): 검색할 문서 개수
-            
+            query (str): 검색할 질문 텍스트
+            top_k (int): 검색할 상위 문서 개수
+
         Returns:
-            List[str]: 검색된 지식 문장 리스트 (출처 및 신뢰도 포함)
+            List[str]: 검색된 문서 내용 리스트
         """
         print(f"지식 검색 중... (질문: {query})")
+        return self._search_internal(query, top_k)
+
+    async def aretrieve_context(self, query: str, top_k: int = 3) -> List[str]:
+        """
+        질문과 가장 유사한 상위 k개의 지식 문장을 검색하여 반환합니다. (Async)
+        LangChain Milvus는 아직 완전한 async search를 지원하지 않을 수 있으므로,
+        필요 시 동기 메서드를 별도 스레드에서 실행하는 방식으로 래핑합니다.
+
+        Args:
+            query (str): 검색할 질문 텍스트
+            top_k (int): 검색할 상위 문서 개수
+
+        Returns:
+            List[str]: 검색된 문서 내용 리스트
+        """
+        import asyncio
+        from functools import partial
         
+        loop = asyncio.get_running_loop()
+        # 동기 메서드인 _search_internal을 별도 스레드에서 실행하여 이벤트 루프 차단 방지
+        return await loop.run_in_executor(
+            None, 
+            partial(self._search_internal, query, top_k)
+        )
+
+    def _search_internal(self, query: str, top_k: int) -> List[str]:
+        """실제 검색 로직 (내부 메서드)"""
         try:
             # 유사도 검색 수행 (거리 점수 포함)
-            # Milvus 기본값인 L2 거리를 기준으로 결과가 반환됩니다.
             docs_with_scores = self.vector_db.similarity_search_with_score(query, k=top_k)
             
             results = []
             for doc, score in docs_with_scores:
                 content = doc.page_content
-                # L2 거리를 활용해 직관적인 신뢰도(%)로 변환 (값의 범위에 따라 조정 가능)
-                # 여기서는 간단히 코사인 유사도 근사치를 사용
-                cosine_sim = 1 - (score**2 / 2)
-                confidence = max(0, cosine_sim * 100)
+                # L2 거리를 활용해 직관적인 신뢰도(%)로 변환
+                # score(거리)가 0에 가까울수록 유사함
+                # 여기서는 간단히 코사인 유사도 근사치를 사용 (데이터 분포에 따라 조정 필요)
+                # Milvus L2 metric 기준: distance
+                cosine_sim = 1 - (score / 2) # L2 distance to normalized similarity (approx)
+                if cosine_sim < 0: cosine_sim = 0
+                confidence = cosine_sim * 100
                 
                 # 출처 정보와 내용을 결합
-                source_info = f"[출처: {doc.metadata.get('title', '치과지식')}] (신뢰도: {confidence:.1f}%)"
+                title = doc.metadata.get('title', '치과지식')
+                source_info = f"[출처: {title}] (신뢰도: {confidence:.1f}%)"
                 results.append(f"{source_info}\n{content}")
             
             return results
