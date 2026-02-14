@@ -102,3 +102,11 @@ ENV/
 api/.gradle/
 api/build/
 api/out/
+# generated/large artifacts
+ai/best.pt
+ai/runs/
+api/reports/
+*.pt
+*.pdf
+*.jpg
+api/src/main/resources/fonts/

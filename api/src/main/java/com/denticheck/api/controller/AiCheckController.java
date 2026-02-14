@@ -32,7 +32,7 @@ public class AiCheckController {
     @PostMapping(value = "/ai-check/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public AnalyzeResponse runAiCheckAnalyze(
             @RequestPart("file") MultipartFile file,
-            @RequestParam(value = "generatePdf", defaultValue = "false") boolean generatePdf
+            @RequestParam(value = "generatePdf", defaultValue = "true") boolean generatePdf
     ) {
         return aiCheckOrchestratorService.runAnalyze(file, generatePdf);
     }

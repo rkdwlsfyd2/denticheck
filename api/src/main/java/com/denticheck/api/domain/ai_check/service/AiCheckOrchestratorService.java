@@ -2,6 +2,7 @@ package com.denticheck.api.domain.ai_check.service;
 
 import com.denticheck.api.domain.ai_check.dto.AiCheckRunResponse;
 import com.denticheck.api.domain.ai_check.dto.AnalyzeResponse;
+import com.denticheck.api.domain.ai_check.dto.PdfViewModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +49,7 @@ public class AiCheckOrchestratorService {
     private final MilvusRagService milvusRagService;
     private final AiLlmResultService aiLlmResultService;
     private final AiAnalyzeLlmService aiAnalyzeLlmService;
+    private final AnalyzePdfViewMapper analyzePdfViewMapper;
     private final PdfReportService pdfReportService;
     private final ReportStorageService reportStorageService;
 
@@ -207,15 +209,14 @@ public class AiCheckOrchestratorService {
                         Map.of("qualityPass", false),
                         ragSources
                 );
-
-                if (generatePdf) {
-                    AiCheckRunResponse.LlmResult legacyLlm = aiLlmResultService.generate(List.of(), false, 0.0, ragResult.getContexts());
-                    createAndStorePdf(sessionId, legacyLlm, List.of());
-                }
+                String pdfUrl = generatePdf
+                        ? createAndStoreAnalyzePdf(sessionId, llmResult, List.of())
+                        : "";
 
                 return AnalyzeResponse.builder()
                         .sessionId(sessionId)
                         .status("done")
+                        .pdfUrl(pdfUrl)
                         .detections(List.of())
                         .rag(AnalyzeResponse.RagSummary.builder()
                                 .topK(8)
@@ -236,15 +237,14 @@ public class AiCheckOrchestratorService {
             List<AnalyzeResponse.DetectionItem> analyzeDetections = toAnalyzeDetections(detections);
 
             AnalyzeResponse.LlmResult llmResult = aiAnalyzeLlmService.generate(analyzeDetections, summary, ragSources);
-
-            if (generatePdf) {
-                AiCheckRunResponse.LlmResult legacyLlm = aiLlmResultService.generate(detections, true, 1.0, ragResult.getContexts());
-                createAndStorePdf(sessionId, legacyLlm, detections);
-            }
+            String pdfUrl = generatePdf
+                    ? createAndStoreAnalyzePdf(sessionId, llmResult, analyzeDetections)
+                    : "";
 
             return AnalyzeResponse.builder()
                     .sessionId(sessionId)
                     .status("done")
+                    .pdfUrl(pdfUrl)
                     .detections(analyzeDetections)
                     .rag(AnalyzeResponse.RagSummary.builder()
                             .topK(8)
@@ -266,6 +266,21 @@ public class AiCheckOrchestratorService {
     ) {
         byte[] pdf = pdfReportService.generate(sessionId, llmResult, detections);
         return reportStorageService.uploadPdf(sessionId, pdf);
+    }
+
+    private String createAndStoreAnalyzePdf(
+            String sessionId,
+            AnalyzeResponse.LlmResult llmResult,
+            List<AnalyzeResponse.DetectionItem> detections
+    ) {
+        try {
+            PdfViewModel viewModel = analyzePdfViewMapper.toPdfViewModel(llmResult, detections);
+            byte[] pdf = pdfReportService.generateAnalyzeReport(sessionId, viewModel);
+            return reportStorageService.uploadPdf(sessionId, pdf);
+        } catch (Exception e) {
+            log.warn("Analyze PDF generation failed for session {}. Empty pdfUrl returned", sessionId, e);
+            return "";
+        }
     }
 
     private AiCheckRunResponse.RagSummary toRagSummary(List<MilvusRagService.RagContext> contexts) {
@@ -438,6 +453,7 @@ public class AiCheckOrchestratorService {
         return AnalyzeResponse.builder()
                 .sessionId(sessionId)
                 .status("error:" + reason)
+                .pdfUrl(fallback.getPdfUrl())
                 .detections(fallback.getDetections())
                 .rag(fallback.getRag())
                 .llmResult(fallback.getLlmResult())
@@ -448,10 +464,12 @@ public class AiCheckOrchestratorService {
         MilvusRagService.RagSearchResult ragResult = milvusRagService.search("Dental screening fallback context", 8);
         List<AnalyzeResponse.RagSource> ragSources = toAnalyzeRagSources(ragResult.getContexts());
         AnalyzeResponse.LlmResult llmResult = aiAnalyzeLlmService.generate(List.of(), Map.of(), ragSources);
+        String pdfUrl = createAndStoreAnalyzePdf(sessionId, llmResult, List.of());
 
         return AnalyzeResponse.builder()
                 .sessionId(sessionId)
                 .status("done")
+                .pdfUrl(pdfUrl)
                 .detections(List.of())
                 .rag(AnalyzeResponse.RagSummary.builder()
                         .topK(8)

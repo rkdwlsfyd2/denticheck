@@ -12,8 +12,8 @@ import { enableScreens } from "react-native-screens";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 enableScreens();
-
-function App() {
+  
+function App() { 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

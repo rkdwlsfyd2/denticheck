@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Linking, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Camera, ImagePlus } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,6 +21,7 @@ type AnalyzeFinding = { title: string; detail: string; evidence: string[] };
 type AnalyzeResponse = {
     sessionId: string;
     status: string;
+    pdfUrl?: string;
     detections: Detection[];
     rag: {
         topK: number;
@@ -42,8 +43,111 @@ type SelectedImage = {
     mimeType: string;
 };
 
+type RiskUi = {
+    text: string;
+    badgeClassName: string;
+};
+
+type ProblemCard = {
+    title: string;
+    reason: string;
+    action: string;
+};
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_SERVER_URL;
 const REQUEST_TIMEOUT_MS = 30_000;
+
+const fallbackActions = [
+    "오늘부터 하루 2~3회, 2분씩 부드럽게 양치하세요.",
+    "자기 전 치실을 1회 사용하고, 사용 후 물로 헹구세요.",
+    "단 음식은 식사 시간에만 먹고, 먹은 뒤 물을 마시세요.",
+    "1주 안에 치과 검진 예약을 잡으세요.",
+];
+
+function riskUi(level?: "GREEN" | "YELLOW" | "RED"): RiskUi {
+    switch (level) {
+        case "RED":
+            return { text: "높음(빨강)", badgeClassName: "bg-red-100 text-red-700" };
+        case "YELLOW":
+            return { text: "보통(노랑)", badgeClassName: "bg-amber-100 text-amber-700" };
+        default:
+            return { text: "낮음(초록)", badgeClassName: "bg-emerald-100 text-emerald-700" };
+    }
+}
+
+function problemFromLabel(label: Detection["label"]): ProblemCard | null {
+    switch (label) {
+        case "caries":
+            return {
+                title: "충치 의심",
+                reason: "치아 표면에 손상으로 보이는 부위가 있습니다.",
+                action: "단 음식과 탄산음료를 줄이고 치과 검진을 예약하세요.",
+            };
+        case "tartar":
+            return {
+                title: "치석·잇몸 자극 의심",
+                reason: "잇몸 주변에 자극을 줄 수 있는 부위가 보입니다.",
+                action: "부드럽게 양치하고, 스케일링 상담을 받아보세요.",
+            };
+        case "oral_cancer":
+            return {
+                title: "입안 이상 부위 의심",
+                reason: "입안 점막에 확인이 필요한 부위가 보입니다.",
+                action: "가까운 시일 내 치과 진료를 받아 정확히 확인하세요.",
+            };
+        default:
+            return null;
+    }
+}
+
+function buildProblems(detections: Detection[], findings: AnalyzeFinding[]): ProblemCard[] {
+    const fromDetection = Array.from(new Set(detections.map((d) => d.label)))
+        .map(problemFromLabel)
+        .filter((v): v is ProblemCard => !!v);
+
+    if (fromDetection.length > 0) {
+        return fromDetection.slice(0, 3);
+    }
+
+    return findings.slice(0, 3).map((f, idx) => ({
+        title: f.title || `문제 ${idx + 1}`,
+        reason: f.detail || "확인이 필요한 부위가 보입니다.",
+        action: "무리한 자가 판단보다 치과 검진으로 확인하세요.",
+    }));
+}
+
+function buildActionList(careGuide: string[]): string[] {
+    const sanitized = careGuide
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .map((line) => line.replace(/[A-Za-z]+/g, "").trim())
+        .filter((line) => line.length > 0);
+
+    return Array.from(new Set([...sanitized, ...fallbackActions])).slice(0, 4);
+}
+
+function visitNeed(level?: "GREEN" | "YELLOW" | "RED", detections: Detection[] = []) {
+    const hasOralFinding = detections.some((d) => d.label === "oral_cancer");
+
+    if (hasOralFinding) {
+        return {
+            level: "긴급",
+            reason: "입안 이상 부위가 의심되어 빠른 진료 확인이 필요합니다.",
+        };
+    }
+
+    if (level === "RED" || level === "YELLOW") {
+        return {
+            level: "권장",
+            reason: "확인이 필요한 부위가 있어 가까운 시일 내 검진이 좋습니다.",
+        };
+    }
+
+    return {
+        level: "관찰",
+        reason: "뚜렷한 이상 신호는 적지만 정기 검진은 유지하세요.",
+    };
+}
 
 export default function AICheckScreen() {
     const { token } = useAuth();
@@ -197,6 +301,25 @@ export default function AICheckScreen() {
         }
     };
 
+    const downloadPdf = async () => {
+        const pdfUrl = analyzeResult?.pdfUrl?.trim();
+        if (!pdfUrl) {
+            Alert.alert("알림", "다운로드 가능한 PDF가 없습니다.");
+            return;
+        }
+
+        try {
+            const canOpen = await Linking.canOpenURL(pdfUrl);
+            if (!canOpen) {
+                Alert.alert("오류", "PDF 링크를 열 수 없습니다.");
+                return;
+            }
+            await Linking.openURL(pdfUrl);
+        } catch {
+            Alert.alert("오류", "PDF 다운로드를 시작하지 못했습니다.");
+        }
+    };
+
     if (!API_BASE_URL) {
         return (
             <View className="flex-1 items-center justify-center bg-slate-50">
@@ -205,13 +328,17 @@ export default function AICheckScreen() {
         );
     }
 
-    const detections = quickResult?.detections ?? analyzeResult?.detections ?? [];
+    const llm = analyzeResult?.llmResult;
+    const risk = riskUi(llm?.riskLevel);
+    const problems = buildProblems(analyzeResult?.detections ?? [], llm?.findings ?? []);
+    const actions = buildActionList(llm?.careGuide ?? []);
+    const visit = visitNeed(llm?.riskLevel, analyzeResult?.detections ?? []);
 
     return (
         <View className="flex-1 bg-slate-50">
             <SafeAreaView className="flex-1">
                 <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-                    <Text className="text-2xl font-bold text-slate-800">Run AI</Text>
+                    <Text className="text-2xl font-bold text-slate-800">AI 분석</Text>
                     <Text className="text-sm text-slate-500 mt-2">이미지 업로드 후 AI 분석 결과를 확인하세요.</Text>
 
                     <View className="flex-row gap-3 mt-6">
@@ -236,31 +363,23 @@ export default function AICheckScreen() {
 
                     {selectedImage && (
                         <View className="mt-6 rounded-2xl overflow-hidden border border-slate-200 bg-black">
-                            <Image
-                                source={{ uri: selectedImage.uri }}
-                                style={{ width: "100%", height: 280 }}
-                                resizeMode="contain"
-                            />
+                            <Image source={{ uri: selectedImage.uri }} style={{ width: "100%", height: 280 }} resizeMode="contain" />
                         </View>
                     )}
 
                     <View className="mt-6 gap-3">
                         <Button className="rounded-xl" onPress={runQuick} disabled={!canRunQuick}>
-                            <Text className="text-white font-semibold">
-                                {quickState === "loading" ? "빠른 검사 중.." : "빠른 검사"}
-                            </Text>
+                            <Text className="text-white font-semibold">{quickState === "loading" ? "빠른 검사 중..." : "빠른 검사"}</Text>
                         </Button>
                         <Button className="rounded-xl" onPress={runAnalyze} disabled={!canRunAnalyze}>
-                            <Text className="text-white font-semibold">
-                                {analyzeState === "loading" ? "AI 분석 중.." : "AI 분석(LLM)"}
-                            </Text>
+                            <Text className="text-white font-semibold">{analyzeState === "loading" ? "AI 분석 중..." : "AI 분석"}</Text>
                         </Button>
                     </View>
 
                     {(quickState === "loading" || analyzeState === "loading") && (
                         <View className="mt-6 bg-white border border-slate-200 rounded-2xl p-4 flex-row items-center gap-3">
                             <ActivityIndicator />
-                            <Text className="text-slate-700">처리 중..</Text>
+                            <Text className="text-slate-700">처리 중...</Text>
                         </View>
                     )}
 
@@ -271,6 +390,13 @@ export default function AICheckScreen() {
                         </View>
                     )}
 
+                    {quickState === "success" && quickResult && !analyzeResult && (
+                        <View className="mt-6 bg-white border border-slate-200 rounded-2xl p-4">
+                            <Text className="text-slate-800 font-semibold">빠른 검사 완료</Text>
+                            <Text className="text-slate-600 mt-2 text-sm">자세한 결과가 필요하면 AI 분석을 실행하세요.</Text>
+                        </View>
+                    )}
+
                     {analyzeState === "error" && (
                         <View className="mt-6 bg-white border border-red-200 rounded-2xl p-4">
                             <Text className="text-red-700 font-semibold">AI 분석 실패</Text>
@@ -278,54 +404,47 @@ export default function AICheckScreen() {
                         </View>
                     )}
 
-                    {(quickResult || analyzeResult) && (
-                        <View className="mt-6 gap-4">
-                            <View className="bg-white border border-slate-200 rounded-2xl p-4">
-                                <Text className="font-bold text-slate-800">분석 목록</Text>
-                                {(detections?.length ?? 0) === 0 && (
-                                    <Text className="text-slate-600 mt-2">분석 없음</Text>
-                                )}
-                                {(detections ?? []).slice(0, 10).map((d, idx) => (
-                                    <Text key={`det-${idx}`} className="text-slate-700 mt-2">
-                                        {idx + 1}. {d.label} ({d.confidence.toFixed(2)})
-                                    </Text>
+                    {analyzeResult?.llmResult && (
+                        <View className="mt-6 bg-white border border-slate-200 rounded-2xl p-4 gap-4">
+                            <View className="gap-2">
+                                <Text className="text-lg font-bold text-slate-800">위험도 요약</Text>
+                                <View className="flex-row items-center gap-2">
+                                    <Text className="text-slate-700">위험도:</Text>
+                                    <Text className={`px-2 py-1 rounded-full text-xs font-semibold ${risk.badgeClassName}`}>{risk.text}</Text>
+                                </View>
+                                <Text className="text-slate-700">{llm?.summary?.trim() || "확인이 필요한 부위가 보여 치과 점검을 권장합니다."}</Text>
+                            </View>
+
+                            <View className="gap-2">
+                                <Text className="text-lg font-bold text-slate-800">발견된 문제</Text>
+                                {problems.length === 0 && <Text className="text-slate-700">뚜렷한 이상 문제는 크지 않아 보입니다.</Text>}
+                                {problems.map((p, idx) => (
+                                    <View key={`problem-${idx}`} className="rounded-xl bg-slate-50 p-3">
+                                        <Text className="text-slate-800 font-semibold">{`문제 ${idx + 1}: ${p.title}`}</Text>
+                                        <Text className="text-slate-700 text-sm mt-1">{`왜 문제인지: ${p.reason}`}</Text>
+                                        <Text className="text-slate-700 text-sm mt-1">{`지금 해야 할 행동: ${p.action}`}</Text>
+                                    </View>
                                 ))}
                             </View>
 
-                            {analyzeResult?.llmResult && (
-                                <View className="bg-white border border-slate-200 rounded-2xl p-4 gap-2">
-                                    <Text className="text-lg font-bold text-slate-800">LLM 분석</Text>
-                                    <Text className="text-slate-700">위험도: {analyzeResult.llmResult.riskLevel}</Text>
-                                    <Text className="text-slate-700">{analyzeResult.llmResult.summary}</Text>
+                            <View className="gap-2">
+                                <Text className="text-lg font-bold text-slate-800">지금 해야 할 것</Text>
+                                {actions.map((line, idx) => (
+                                    <Text key={`action-${idx}`} className="text-slate-700">{`${idx + 1}. ${line}`}</Text>
+                                ))}
+                            </View>
 
-                                    <Text className="font-semibold text-slate-800 mt-2">소견</Text>
-                                    {(analyzeResult.llmResult.findings ?? []).map((f, idx) => (
-                                        <View key={`finding-${idx}`} className="mt-1">
-                                            <Text className="text-slate-800">
-                                                {idx + 1}. {f.title}
-                                            </Text>
-                                            <Text className="text-slate-600 text-sm">{f.detail}</Text>
-                                        </View>
-                                    ))}
+                            <View className="gap-2">
+                                <Text className="text-lg font-bold text-slate-800">병원 방문 필요 여부</Text>
+                                <Text className="text-slate-800 font-semibold">{`방문 수준: ${visit.level}`}</Text>
+                                <Text className="text-slate-700">{`이유: ${visit.reason}`}</Text>
+                            </View>
 
-                                    <Text className="font-semibold text-slate-800 mt-2">관리 가이드</Text>
-                                    {(analyzeResult.llmResult.careGuide ?? []).map((line, idx) => (
-                                        <Text key={`guide-${idx}`} className="text-slate-600 text-sm">
-                                            {idx + 1}. {line}
-                                        </Text>
-                                    ))}
-
-                                    <Text className="font-semibold text-slate-800 mt-2">근거 보기 (Top 3)</Text>
-                                    {(analyzeResult.rag?.sources ?? []).slice(0, 3).map((s, idx) => (
-                                        <View key={`rag-${idx}`} className="mt-1">
-                                            <Text className="text-slate-800 text-sm">
-                                                {idx + 1}. {s.source}
-                                            </Text>
-                                            <Text className="text-slate-500 text-xs">{s.snippet}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
+                            <View className="pt-2">
+                                <Button className="rounded-xl" onPress={downloadPdf}>
+                                    <Text className="text-white font-semibold">PDF 다운로드</Text>
+                                </Button>
+                            </View>
                         </View>
                     )}
                 </ScrollView>
