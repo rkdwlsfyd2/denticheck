@@ -29,7 +29,7 @@ type AuthContextValue = {
     isLoading: boolean;
     error: string | null;
     signInWithGoogle: () => Promise<void>;
-    signInDev: () => Promise<void>;
+    signInDev: (role?: "user" | "admin") => Promise<void>;
     signOut: () => Promise<void>;
     fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 };
@@ -103,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             : { ...user, provider: "google" };
 
+        console.log("accessToken: ", accessToken);
         await saveSession(accessToken, refreshToken, mergedUser);
     };
 
@@ -175,18 +176,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const signInDev = async () => {
+    const signInDev = async (role: "user" | "admin" = "user") => {
         setError(null);
         setIsLoading(true);
         try {
+            const isUser = role === "user";
             const mockUser: AuthUser = {
-                email: "dev@denticheck.com",
-                name: "Dev User",
+                email: isUser ? "dev@denticheck.com" : "admin@denticheck.com",
+                name: isUser ? "Dev User" : "Dev Admin",
                 picture: "https://via.placeholder.com/150",
                 provider: "dev",
             };
-            const mockAccessToken = "dev-access-token";
-            const mockRefreshToken = "dev-refresh-token";
+            // JWTFilter에서 access_token_for_user_test / access_token_for_admin_test 체크함
+            const mockAccessToken = isUser ? "access_token_for_user_test" : "access_token_for_admin_test";
+            const mockRefreshToken = "dev-refresh-token"; // 리프레시는 딱히 검증 안 함(DB에 없으면 만료 처리될 뿐)
 
             await saveSession(mockAccessToken, mockRefreshToken, mockUser);
         } finally {

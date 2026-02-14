@@ -58,12 +58,22 @@ public class JWTFilter extends OncePerRequestFilter {
         // 토큰 파싱
         String accessToken = authorization.substring("Bearer ".length());
 
-        // TODO: 임시 토큰 처리 (테스트용)
-        if ("temp_access_token_for_test".equals(accessToken)) {
+        // TODO: 임시 토큰 처리 (테스트 유저용)
+        if ("access_token_for_user_test".equals(accessToken)) {
             Authentication auth = new UsernamePasswordAuthenticationToken(
                     "TestUser",
                     null,
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            filterChain.doFilter(request, response);
+            return;
+        }
+        // TODO: 임시 토큰 처리 (테스트 관리자용)
+        if ("access_token_for_admin_test".equals(accessToken)) {
+            Authentication auth = new UsernamePasswordAuthenticationToken(
+                    "TestAdmin",
+                    null,
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN")));
             SecurityContextHolder.getContext().setAuthentication(auth);
             filterChain.doFilter(request, response);
             return;

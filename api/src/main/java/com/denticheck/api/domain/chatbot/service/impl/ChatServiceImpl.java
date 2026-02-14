@@ -70,8 +70,6 @@ public class ChatServiceImpl implements ChatService {
                 : ChatMessageType.TEXT;
         Map<String, Object> payload = request.getPayload();
 
-        log.info("사용자로부터 채팅 메시지를 수신했습니다. 사용자: {}, 채널: {}, 내용: {}", userId, channel, content);
-
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
@@ -126,11 +124,6 @@ public class ChatServiceImpl implements ChatService {
         AiChatMessageEntity savedAiMessage = aiChatMessageRepository.save(aiMessage);
 
         session.touchLastMessage(preview(aiContent));
-
-        // 4. SSE 푸시 (단순 HTTP 요청/응답 전환 시 제거 가능)
-        // ... (필요 시 유지)
-
-        log.info("AI 응답 생성 완료: sessionId={}, 내용={}", session.getId(), savedAiMessage.getContent());
 
         return ChatAppResponse.builder()
                 .sessionId(session.getId())
