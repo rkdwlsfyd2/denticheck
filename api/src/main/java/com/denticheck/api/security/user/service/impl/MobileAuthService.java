@@ -11,9 +11,14 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import com.denticheck.api.common.exception.user.UserErrorCode;
+import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.domain.user.entity.UserStatusType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class MobileAuthService {
 
@@ -24,6 +29,7 @@ public class MobileAuthService {
 
         @Transactional
         public JWTResponseDTO googleLogin(String idToken) {
+                log.debug("googleLogin() 실행");
 
                 Jwt jwt = googleVerifier.verify(idToken);
 
@@ -40,6 +46,18 @@ public class MobileAuthService {
                                 email,
                                 nickname,
                                 picture);
+
+                if (user.getUserStatusType() != UserStatusType.ACTIVE) {
+                        if (user.getUserStatusType() == UserStatusType.SUSPENDED) {
+                                throw new UserException(UserErrorCode.USER_SUSPENDED);
+                        } else if (user.getUserStatusType() == UserStatusType.DORMANT) {
+                                throw new UserException(UserErrorCode.USER_DORMANT);
+                        } else if (user.getUserStatusType() == UserStatusType.WITHDRAWN) {
+                                throw new UserException(UserErrorCode.USER_WITHDRAWN);
+                        } else {
+                                throw new UserException(UserErrorCode.USER_NOT_ACTIVE);
+                        }
+                }
 
                 String roleName = user.getRole() != null ? user.getRole().getName() : "USER";
                 String role = "ROLE_" + roleName;

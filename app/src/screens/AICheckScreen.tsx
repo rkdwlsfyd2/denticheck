@@ -34,6 +34,7 @@ type AnalyzeResponse = {
         careGuide: string[];
         disclaimer: string[];
     };
+    pdfUrl?: string;
 };
 
 type SelectedImage = {
@@ -168,7 +169,7 @@ export default function AICheckScreen() {
         const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/ai-check/analyze`, {
+            const res = await fetch(`${API_BASE_URL}/api/ai-check/analyze?generatePdf=true`, {
                 method: "POST",
                 headers: buildHeaders(),
                 body: buildFormData(),
@@ -324,6 +325,22 @@ export default function AICheckScreen() {
                                             <Text className="text-slate-500 text-xs">{s.snippet}</Text>
                                         </View>
                                     ))}
+
+                                    {analyzeResult.pdfUrl && (
+                                        <View className="mt-4 pt-4 border-t border-slate-100">
+                                            <Text className="font-semibold text-slate-800 mb-2">결과 보고서</Text>
+                                            <TouchableOpacity
+                                                onPress={() =>
+                                                    Alert.alert("PDF 다운로드", `URL: ${analyzeResult.pdfUrl}`)
+                                                }
+                                                className="bg-blue-50 p-3 rounded-xl border border-blue-100"
+                                            >
+                                                <Text className="text-blue-600 text-center font-semibold">
+                                                    PDF 리포트 다운로드
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
                                 </View>
                             )}
                         </View>

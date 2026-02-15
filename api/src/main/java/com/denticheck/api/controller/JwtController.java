@@ -1,6 +1,7 @@
 package com.denticheck.api.controller;
 
 import com.denticheck.api.security.jwt.dto.JWTResponseDTO;
+import com.denticheck.api.security.jwt.dto.LogoutRequestDTO;
 import com.denticheck.api.security.jwt.dto.RefreshRequestDTO;
 import com.denticheck.api.security.jwt.service.impl.JwtServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,5 +32,13 @@ public class JwtController {
     public JWTResponseDTO jwtRefreshApi(
             @Validated @RequestBody RefreshRequestDTO dto) {
         return jwtServiceImpl.refreshRotate(dto);
+    }
+
+    // 로그아웃 (Refresh 토큰 삭제)
+    @PostMapping(value = "/jwt/logout", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public org.springframework.http.ResponseEntity<Void> logout(
+            @Validated @RequestBody LogoutRequestDTO dto) {
+        jwtServiceImpl.removeRefresh(dto.refreshToken());
+        return org.springframework.http.ResponseEntity.ok().build();
     }
 }

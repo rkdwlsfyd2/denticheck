@@ -42,10 +42,9 @@ public class AiCheckOrchestratorService {
     @Value("${ai.client.timeout:5000}")
     private int aiClientTimeoutMs;
 
-    @Value("${ai.analyze.timeout-ms:25000}")
-    private int analyzeTimeoutMs;
+    @Value("${ai.analyze.timeout:3m}")
+    private java.time.Duration analyzeTimeout;
 
-    private final MilvusRagService milvusRagService;
     private final AiLlmResultService aiLlmResultService;
     private final AiAnalyzeLlmService aiAnalyzeLlmService;
     private final PdfReportService pdfReportService;
@@ -70,8 +69,8 @@ public class AiCheckOrchestratorService {
             List<String> qualityReasons = asStringList(quality.get("reasons"));
 
             if (!qualityPass) {
-                List<MilvusRagService.RagContext> contexts = milvusRagService.retrieveContexts(Collections.emptyList());
-                AiCheckRunResponse.LlmResult llmResult = aiLlmResultService.forQualityFailed(contexts);
+                // 품질 실패 시 RAG 검색 없이 Fallback
+                AiCheckRunResponse.LlmResult llmResult = aiLlmResultService.forQualityFailed(Collections.emptyList());
                 String pdfUrl = createAndStorePdf(sessionId, llmResult, Collections.emptyList());
 
                 return AiCheckRunResponse.builder()
@@ -86,7 +85,7 @@ public class AiCheckOrchestratorService {
                         .summary(Collections.emptyMap())
                         .llmResult(llmResult)
                         .pdfUrl(pdfUrl)
-                        .rag(toRagSummary(contexts))
+                        .rag(toRagSummary(Collections.emptyList()))
                         .build();
             }
 
@@ -94,8 +93,9 @@ public class AiCheckOrchestratorService {
             List<AiCheckRunResponse.DetectionItem> detections = toDetections(detect.get("detections"));
             Map<String, Object> summary = asMap(detect.get("summary"));
 
-            List<MilvusRagService.RagContext> contexts = milvusRagService.retrieveContexts(detections);
-            AiCheckRunResponse.LlmResult llmResult = aiLlmResultService.generate(detections, true, qualityScore, contexts);
+            // RAG 검색은 이제 Python 측에서 수행되므로 Java에서는 빈 컨텍스트 전달
+            AiCheckRunResponse.LlmResult llmResult = aiLlmResultService.generate(detections, true, qualityScore,
+                    Collections.emptyList());
             String pdfUrl = createAndStorePdf(sessionId, llmResult, detections);
 
             return AiCheckRunResponse.builder()
@@ -110,7 +110,7 @@ public class AiCheckOrchestratorService {
                     .summary(summary)
                     .llmResult(llmResult)
                     .pdfUrl(pdfUrl)
-                    .rag(toRagSummary(contexts))
+                    .rag(toRagSummary(Collections.emptyList()))
                     .build();
         } catch (Exception e) {
             log.error("AI check pipeline failed", e);
@@ -182,9 +182,8 @@ public class AiCheckOrchestratorService {
 
         try {
             CompletableFuture<AnalyzeResponse> future = CompletableFuture.supplyAsync(
-                    () -> runAnalyzeInternal(sessionId, file, generatePdf)
-            );
-            return future.get(analyzeTimeoutMs, TimeUnit.MILLISECONDS);
+                    () -> runAnalyzeInternal(sessionId, file, generatePdf));
+            return future.get(analyzeTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             log.warn("Analyze pipeline timed out or failed for session {}. Fallback response returned", sessionId, e);
             return analyzeFallbackResponse(sessionId);
@@ -197,20 +196,17 @@ public class AiCheckOrchestratorService {
             boolean qualityPass = asBoolean(quality.getOrDefault("pass", quality.get("pass_")));
 
             if (!qualityPass) {
-                MilvusRagService.RagSearchResult ragResult = milvusRagService.search(
-                        "Low quality dental image. Provide retry guidance and safe disclaimer.",
-                        8
-                );
-                List<AnalyzeResponse.RagSource> ragSources = toAnalyzeRagSources(ragResult.getContexts());
+                // 품질 실패 시 AI 분석 (Fallback) 호출 (ragSource 없음)
                 AnalyzeResponse.LlmResult llmResult = aiAnalyzeLlmService.generate(
                         List.of(),
                         Map.of("qualityPass", false),
-                        ragSources
-                );
+                        List.of());
 
+                String pdfUrl = null;
                 if (generatePdf) {
-                    AiCheckRunResponse.LlmResult legacyLlm = aiLlmResultService.generate(List.of(), false, 0.0, ragResult.getContexts());
-                    createAndStorePdf(sessionId, legacyLlm, List.of());
+                    AiCheckRunResponse.LlmResult legacyLlm = aiLlmResultService.generate(List.of(), false, 0.0,
+                            List.of());
+                    pdfUrl = createAndStorePdf(sessionId, legacyLlm, List.of());
                 }
 
                 return AnalyzeResponse.builder()
@@ -218,11 +214,12 @@ public class AiCheckOrchestratorService {
                         .status("done")
                         .detections(List.of())
                         .rag(AnalyzeResponse.RagSummary.builder()
-                                .topK(8)
-                                .sources(ragSources)
-                                .usedFallback(ragResult.isUsedFallback())
+                                .topK(0)
+                                .sources(List.of())
+                                .usedFallback(false)
                                 .build())
                         .llmResult(llmResult)
+                        .pdfUrl(pdfUrl)
                         .build();
             }
 
@@ -230,16 +227,15 @@ public class AiCheckOrchestratorService {
             List<AiCheckRunResponse.DetectionItem> detections = toDetections(detect.get("detections"));
             Map<String, Object> summary = asMap(detect.get("summary"));
 
-            String query = buildQueryFromDetections(detections, summary);
-            MilvusRagService.RagSearchResult ragResult = milvusRagService.search(query, 8);
-            List<AnalyzeResponse.RagSource> ragSources = toAnalyzeRagSources(ragResult.getContexts());
             List<AnalyzeResponse.DetectionItem> analyzeDetections = toAnalyzeDetections(detections);
 
-            AnalyzeResponse.LlmResult llmResult = aiAnalyzeLlmService.generate(analyzeDetections, summary, ragSources);
+            // Python 서버가 RAG 검색을 포함하여 소견서 생성
+            AnalyzeResponse.LlmResult llmResult = aiAnalyzeLlmService.generate(analyzeDetections, summary, List.of());
 
+            String pdfUrl = null;
             if (generatePdf) {
-                AiCheckRunResponse.LlmResult legacyLlm = aiLlmResultService.generate(detections, true, 1.0, ragResult.getContexts());
-                createAndStorePdf(sessionId, legacyLlm, detections);
+                AiCheckRunResponse.LlmResult legacyLlm = aiLlmResultService.generate(detections, true, 1.0, List.of());
+                pdfUrl = createAndStorePdf(sessionId, legacyLlm, detections);
             }
 
             return AnalyzeResponse.builder()
@@ -247,11 +243,12 @@ public class AiCheckOrchestratorService {
                     .status("done")
                     .detections(analyzeDetections)
                     .rag(AnalyzeResponse.RagSummary.builder()
-                            .topK(8)
-                            .sources(ragSources)
-                            .usedFallback(ragResult.isUsedFallback())
+                            .topK(0)
+                            .sources(List.of()) // Python에서 검색하므로 Java 쪽 RagSummary는 비움
+                            .usedFallback(false)
                             .build())
                     .llmResult(llmResult)
+                    .pdfUrl(pdfUrl)
                     .build();
         } catch (Exception e) {
             log.warn("Analyze pipeline failed for session {}. Returning fallback", sessionId, e);
@@ -262,23 +259,16 @@ public class AiCheckOrchestratorService {
     private String createAndStorePdf(
             String sessionId,
             AiCheckRunResponse.LlmResult llmResult,
-            List<AiCheckRunResponse.DetectionItem> detections
-    ) {
+            List<AiCheckRunResponse.DetectionItem> detections) {
         byte[] pdf = pdfReportService.generate(sessionId, llmResult, detections);
         return reportStorageService.uploadPdf(sessionId, pdf);
     }
 
-    private AiCheckRunResponse.RagSummary toRagSummary(List<MilvusRagService.RagContext> contexts) {
-        List<AiCheckRunResponse.RagSource> sources = contexts.stream()
-                .map(v -> AiCheckRunResponse.RagSource.builder()
-                        .source(v.getSource())
-                        .score(v.getScore())
-                        .build())
-                .toList();
-
+    private AiCheckRunResponse.RagSummary toRagSummary(List<?> contexts) {
+        // Fallback for empty/Java-side RAG summary since Python handles it
         return AiCheckRunResponse.RagSummary.builder()
-                .topK(milvusRagService.getTopK())
-                .sources(sources)
+                .topK(0)
+                .sources(List.of())
                 .build();
     }
 
@@ -312,19 +302,23 @@ public class AiCheckOrchestratorService {
     }
 
     private boolean isAllowedImage(String filename) {
-        if (filename == null) return false;
+        if (filename == null)
+            return false;
         String lower = filename.toLowerCase(Locale.ROOT);
         return ALLOWED_EXTENSIONS.stream().anyMatch(lower::endsWith);
     }
 
     private boolean asBoolean(Object v) {
-        if (v instanceof Boolean b) return b;
-        if (v instanceof String s) return Boolean.parseBoolean(s);
+        if (v instanceof Boolean b)
+            return b;
+        if (v instanceof String s)
+            return Boolean.parseBoolean(s);
         return false;
     }
 
     private double asDouble(Object v) {
-        if (v instanceof Number n) return n.doubleValue();
+        if (v instanceof Number n)
+            return n.doubleValue();
         if (v instanceof String s) {
             try {
                 return Double.parseDouble(s);
@@ -342,7 +336,8 @@ public class AiCheckOrchestratorService {
         }
         List<String> out = new ArrayList<>();
         for (Object item : list) {
-            if (item != null) out.add(String.valueOf(item));
+            if (item != null)
+                out.add(String.valueOf(item));
         }
         return out;
     }
@@ -367,7 +362,8 @@ public class AiCheckOrchestratorService {
 
         List<AiCheckRunResponse.DetectionItem> out = new ArrayList<>();
         for (Object item : list) {
-            if (!(item instanceof Map<?, ?> m)) continue;
+            if (!(item instanceof Map<?, ?> m))
+                continue;
 
             String label = normalizeLabel(Objects.toString(m.get("label"), "normal"));
             double confidence = asDouble(m.get("confidence"));
@@ -399,8 +395,8 @@ public class AiCheckOrchestratorService {
     }
 
     private AiCheckRunResponse errorResponse(String sessionId, String storageKey, String imageUrl, String reason) {
-        List<MilvusRagService.RagContext> contexts = milvusRagService.retrieveContexts(Collections.emptyList());
-        AiCheckRunResponse.LlmResult llmResult = aiLlmResultService.generate(Collections.emptyList(), false, 0.0, contexts);
+        AiCheckRunResponse.LlmResult llmResult = aiLlmResultService.generate(Collections.emptyList(), false, 0.0,
+                Collections.emptyList());
         String pdfUrl = createAndStorePdf(sessionId, llmResult, Collections.emptyList());
 
         return AiCheckRunResponse.builder()
@@ -415,7 +411,6 @@ public class AiCheckOrchestratorService {
                 .summary(Collections.emptyMap())
                 .llmResult(llmResult)
                 .pdfUrl(pdfUrl)
-                .rag(toRagSummary(contexts))
                 .build();
     }
 
@@ -439,25 +434,17 @@ public class AiCheckOrchestratorService {
                 .sessionId(sessionId)
                 .status("error:" + reason)
                 .detections(fallback.getDetections())
-                .rag(fallback.getRag())
                 .llmResult(fallback.getLlmResult())
                 .build();
     }
 
     private AnalyzeResponse analyzeFallbackResponse(String sessionId) {
-        MilvusRagService.RagSearchResult ragResult = milvusRagService.search("Dental screening fallback context", 8);
-        List<AnalyzeResponse.RagSource> ragSources = toAnalyzeRagSources(ragResult.getContexts());
-        AnalyzeResponse.LlmResult llmResult = aiAnalyzeLlmService.generate(List.of(), Map.of(), ragSources);
+        AnalyzeResponse.LlmResult llmResult = aiAnalyzeLlmService.generate(List.of(), Map.of(), List.of());
 
         return AnalyzeResponse.builder()
                 .sessionId(sessionId)
                 .status("done")
                 .detections(List.of())
-                .rag(AnalyzeResponse.RagSummary.builder()
-                        .topK(8)
-                        .sources(ragSources)
-                        .usedFallback(true)
-                        .build())
                 .llmResult(llmResult)
                 .build();
     }
@@ -477,38 +464,8 @@ public class AiCheckOrchestratorService {
                 .toList();
     }
 
-    private List<AnalyzeResponse.RagSource> toAnalyzeRagSources(List<MilvusRagService.RagContext> contexts) {
-        return contexts.stream()
-                .map(v -> AnalyzeResponse.RagSource.builder()
-                        .source(v.getSource())
-                        .score(v.getScore())
-                        .snippet(trimSnippet(v.getText()))
-                        .build())
-                .toList();
-    }
-
-    private String trimSnippet(String text) {
-        if (text == null) {
-            return "";
-        }
-        String flat = text.replace('\n', ' ').trim();
-        return flat.length() <= 200 ? flat : flat.substring(0, 200);
-    }
-
-    private String buildQueryFromDetections(List<AiCheckRunResponse.DetectionItem> detections, Map<String, Object> summary) {
-        Map<String, Integer> grouped = new LinkedHashMap<>();
-        for (AiCheckRunResponse.DetectionItem d : detections) {
-            String label = d.getLabel() == null ? "normal" : d.getLabel();
-            grouped.put(label, grouped.getOrDefault(label, 0) + 1);
-        }
-        String summaryText = summary == null || summary.isEmpty() ? "{}" : summary.toString();
-        return "Detected findings: " + grouped + ". Detection summary: " + summaryText
-                + ". Provide clinical explanation, risk level, care guide, and evidence-based citations.";
-    }
-
     private RestTemplate aiRestTemplate() {
-        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
-                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(aiClientTimeoutMs);
         factory.setReadTimeout(aiClientTimeoutMs);
         return new RestTemplate(factory);

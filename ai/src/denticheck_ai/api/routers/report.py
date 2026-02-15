@@ -54,17 +54,25 @@ class ReportResponse(BaseModel):
     language: str                       # 생성된 언어
     pdf_url: Optional[str] = None       # [선택] 생성된 PDF 다운로드 URL
 
+
+        
 @router.post("/generate", response_model=ReportResponse, summary="AI 소견서 생성")
 async def generate_report(req: ReportRequest):
     """
-    분석 데이터를 바탕으로 맞춤형 소견서를 작성합니다.
+    분석 데이터를 바탕으로 맞춤형 소견서를 작성합니다. (Async RAG + LLM)
     
-    1. 탐지된 질환 항목을 기반으로 Milvus에서 관련 의학 자료 검색 (RAG)
+    1. 탐지된 질환 항목을 기반으로 Milvus에서 관련 의학 자료 검색 (RAG) - Python 직접 수행
     2. 검색된 전문 지식과 탐지 데이터를 LLM 프롬프트에 결합
     3. LLM을 통해 사용자 맞춤형 소견서(3단계 구조) 생성
     """
+    from loguru import logger
+    import time
+
+    start_total = time.time()
+    logger.info(f"Report generation started for language: {req.language}")
+
     try:
-        # [RAG 연동 1단계: 관련 지식 검색]
+        # [RAG 연동 1단계: 관련 지식 검색 (Async)]
         # 발견된 질환 라벨을 키워드로 사용하여 Milvus 벡터 DB에서 지식 조각을 가져옵니다.
         query_parts = []
         for label, summary in req.yolo.items():
@@ -72,12 +80,27 @@ async def generate_report(req: ReportRequest):
                 query_parts.append(label)
         
         search_query = ", ".join(query_parts) if query_parts else "구강 건강 관리"
-        contexts = retriever.retrieve_context(search_query, top_k=2)
+        
+        logger.info(f"RAG search query: {search_query}")
+        start_rag = time.time()
+        
+        # 비동기 검색 실행
+        contexts = await retriever.aretrieve_context(search_query, top_k=2)
         context_text = "\n\n".join(contexts)
+
+        duration_rag = time.time() - start_rag
+        logger.info(f"RAG retrieval completed in {duration_rag:.2f}s. Context length: {len(context_text)}")
  
-        # [RAG 연동 2단계: 소견서 생성 호출]
+        # [RAG 연동 2단계: 소견서 생성 호출 (Async)]
         # 검색된 지식(context_text)과 함께 모든 분석 데이터를 LLM에 전달합니다.
-        result = llm_client.generate_report(data=req, context=context_text, language=req.language)
+        start_llm = time.time()
+        logger.info("Calling LLM for report generation...")
+
+        result = await llm_client.generate_report(data=req, context=context_text, language=req.language)
+        
+        duration_llm = time.time() - start_llm
+        duration_total = time.time() - start_total
+        logger.info(f"LLM generation completed in {duration_llm:.2f}s. Total duration: {duration_total:.2f}s")
         
         return ReportResponse(
             summary=result["summary"],
@@ -86,8 +109,8 @@ async def generate_report(req: ReportRequest):
             language=req.language
         )
     except Exception as e:
-        from loguru import logger
-        logger.error(f"소견서 생성 오류: {str(e)}")
+        duration_total = time.time() - start_total
+        logger.error(f"Report generation failed after {duration_total:.2f}s: {str(e)}")
         raise HTTPException(status_code=500, detail="소견서 생성 중 오류가 발생했습니다.")
 
 @router.post("/pdf", response_model=Dict[str, Any], summary="소견서 PDF 변환")
