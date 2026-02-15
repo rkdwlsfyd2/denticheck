@@ -62,7 +62,6 @@ public class JWTFilter extends OncePerRequestFilter {
         // 프론트엔드 또는 Postman 등에서 'Authorization: Bearer admin-test-token-2026' 헤더 사용 시
         // ADMIN 권한 부여
         if ("temp_access_token_for_test".equals(accessToken) ||
-                "temp_access_token_for_testBearer temp_access_token_for_test".equals(accessToken) ||
                 "admin-test-token-2026".equals(accessToken)) {
             log.info("Temporary Test Admin Token detected. Granting ROLE_ADMIN.");
             Authentication auth = new UsernamePasswordAuthenticationToken(
