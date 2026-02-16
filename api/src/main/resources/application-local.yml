@@ -47,6 +47,8 @@ minio:
 admin:
     web:
         refresh-cookie-secure: false
+        refresh-cookie-httponly: true
+        refresh-cookie-max-age: 30d
 
 jwt:
     enable-development-tokens: true

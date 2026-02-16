@@ -6,48 +6,54 @@
 
 const BACKEND_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
-interface TokenResponse {
-    accessToken: string;
-    refreshToken: string;
+// Memory storage for accessToken
+let memoryToken: string | null = null;
+
+/**
+ * 전역에서 토큰을 설정하기 위한 함수 (AuthContext에서 호출)
+ */
+export function setMemoryToken(token: string | null) {
+    memoryToken = token;
 }
 
-// AccessToken 만료시 Refreshing
+/**
+ * AccessToken 만료시 Refreshing (HttpOnly 쿠키 방식)
+ */
 export async function refreshAccessToken(): Promise<string> {
-    // 로컬 스토리지로 부터 RefreshToken 가져옴
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (!refreshToken) throw new Error("RefreshToken이 없습니다.");
-
     const response = await fetch(`${BACKEND_API_BASE_URL}/jwt/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
+        credentials: "include", // 쿠키 포함 필수
+        body: JSON.stringify({}), // 하이브리드 지원을 위해 빈 객체 전송
     });
 
-    if (!response.ok) throw new Error("AccessToken 갱신 실패");
+    if (!response.ok) {
+        throw new Error("AccessToken 갱신 실패");
+    }
 
-    // 성공 새 Token 저장
-    const data: TokenResponse = await response.json();
-    localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("refreshToken", data.refreshToken);
-
+    const data = await response.json();
+    setMemoryToken(data.accessToken);
     return data.accessToken;
 }
 
 /**
- * 서버 측 로그아웃 호출 (리프레시 토큰 무효화)
+ * 서버 측 로그아웃 호출
  */
 export async function logout(): Promise<void> {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (!refreshToken) return;
-
     try {
         await fetch(`${BACKEND_API_BASE_URL}/jwt/logout`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken }),
+            credentials: "include",
+            body: JSON.stringify({}),
         });
     } catch (error) {
         console.error("Server-side logout failed:", error);
+    } finally {
+        setMemoryToken(null);
+        // localStorage 청소 (기존 데이터가 있을 경우 대비)
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
     }
 }
 
@@ -57,8 +63,8 @@ interface FetchOptions extends RequestInit {
 
 // AccessToken과 함께 fetch
 export async function fetchWithAuth(url: string, options: FetchOptions = {}): Promise<Response> {
-    // 로컬 스토리지로 부터 AccessToken 가져옴
-    let accessToken = localStorage.getItem("accessToken");
+    // 메모리에 있는 AccessToken 사용
+    let accessToken = memoryToken;
 
     // 헤더 초기화
     const headers = new Headers(options.headers);
@@ -67,10 +73,11 @@ export async function fetchWithAuth(url: string, options: FetchOptions = {}): Pr
         headers.set("Authorization", `Bearer ${accessToken}`);
     }
 
-    // 옵션 업데이트
+    // 옵션 업데이트 - credentials: "include" 추가하여 쿠키 연동
     const newOptions: FetchOptions = {
         ...options,
         headers,
+        credentials: "include",
     };
 
     // 요청 진행
@@ -86,10 +93,11 @@ export async function fetchWithAuth(url: string, options: FetchOptions = {}): Pr
             const retryOptions: FetchOptions = {
                 ...options,
                 headers,
+                credentials: "include",
             };
             response = await fetch(url, retryOptions);
         } catch (err) {
-            // Refreshing이 실패했기 때문에 로컬스토리지 삭제 후, 로그인 페이지로
+            setMemoryToken(null);
             localStorage.removeItem("accessToken");
             localStorage.removeItem("refreshToken");
 
@@ -99,9 +107,6 @@ export async function fetchWithAuth(url: string, options: FetchOptions = {}): Pr
             }
         }
     }
-
-    // 401 외의 에러는 호출하는 쪽에서 처리하도록 둠 (또는 여기서 공통 에러 처리 가능)
-    // 하지만 graphqlRequest 등에서 json 파싱을 위해 response를 그대로 반환하는 것이 좋음
 
     return response;
 }

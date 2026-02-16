@@ -11,6 +11,7 @@ import { cn } from "@/shared/lib/utils";
 import { useLanguage } from "@/features/dashboard/context/LanguageContext";
 import { fetchAdminMe } from "@/shared/lib/api";
 import * as authApi from "@/shared/lib/authApi";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 const sidebarItems = [
     { name: "menu_dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -25,6 +26,7 @@ function LayoutContent() {
     const navigate = useNavigate();
     const { lang, toggleLang, t } = useLanguage();
     const [nickname, setNickname] = useState<string>("");
+    const { clearToken } = useAuth();
 
     useEffect(() => {
         const loadMe = async () => {
@@ -35,18 +37,19 @@ function LayoutContent() {
                 }
             } catch (error) {
                 console.error("Failed to fetch admin info", error);
-                // 토큰 만료 등 이슈 발생 시 자동 로그아웃 처리는 authApi에서 401 통해 처리됨
             }
         };
         loadMe();
     }, []);
 
     const handleLogout = async () => {
-        // 서버 로그아웃 시도 (실패하더라도 로컬 세션은 정리)
+        // 1. 서버 로그아웃 호출 (쿠키 삭제 포함)
         await authApi.logout();
 
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
+        // 2. 클라이언트 메모리 세션 정리
+        clearToken();
+
+        // 3. 로그인 페이지 이동
         navigate("/login");
     };
 

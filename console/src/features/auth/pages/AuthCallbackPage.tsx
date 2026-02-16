@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAlert } from "@/shared/context/AlertContext";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { setMemoryToken } from "@/shared/lib/authApi";
 
 // .env로 부터 백엔드 URL 받아오기
 const BACKEND_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -9,6 +11,7 @@ export function AuthCallbackPage() {
     const navigate = useNavigate();
     const { showAlert } = useAlert();
     const isExchanging = useRef(false);
+    const { saveToken } = useAuth();
 
     // 페이지 접근시 (백엔드에서 리디렉션으로 여기로 보내면, 실행)
     useEffect(() => {
@@ -32,8 +35,10 @@ export function AuthCallbackPage() {
                 }
 
                 const data = await res.json();
-                localStorage.setItem("accessToken", data.accessToken);
-                localStorage.setItem("refreshToken", data.refreshToken);
+
+                // 메모리에 저장 (Context + API Utility)
+                saveToken(data.accessToken);
+                setMemoryToken(data.accessToken);
 
                 // 로그인 성공 알림은 너무 빠를 수 있으니 생략하거나 toast 등 사용 가능
                 navigate("/dashboard");
@@ -45,7 +50,7 @@ export function AuthCallbackPage() {
         };
 
         cookieToBody();
-    }, [navigate, showAlert]);
+    }, [navigate, showAlert, saveToken]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">

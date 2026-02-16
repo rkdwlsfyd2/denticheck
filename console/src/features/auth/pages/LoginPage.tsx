@@ -1,6 +1,8 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import { useAlert } from "@/shared/context/AlertContext";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { setMemoryToken } from "@/shared/lib/authApi";
 import { useLanguage } from "@/features/dashboard/context/LanguageContext";
 import { Globe } from "lucide-react";
 
@@ -12,6 +14,7 @@ export function LoginPage() {
     const [searchParams] = useSearchParams();
     const { showAlert } = useAlert();
     const { lang, toggleLang, t } = useLanguage();
+    const { saveToken } = useAuth();
 
     // 에러 파라미터 처리 (관리자 권한 없음 등)
     useEffect(() => {
@@ -29,14 +32,28 @@ export function LoginPage() {
     };
 
     // 개발용 로그인 이벤트
-    const handleDevLogin = () => {
-        const devToken = "devAccessToken-admin";
-        localStorage.setItem("accessToken", devToken);
-        // refreshToken은 Dev Login에서 처리하지 않음 (필요시 더미 값 설정)
-        localStorage.setItem("refreshToken", "dev-refresh-token");
+    const handleDevLogin = async () => {
+        try {
+            const res = await fetch(`${BACKEND_API_BASE_URL}/jwt/dev-login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include", // 쿠키 수신 필수
+            });
 
-        showAlert(t("login_success_dev"), { title: t("login_success_title") });
-        navigate("/dashboard");
+            if (!res.ok) throw new Error("Dev Login Failed");
+
+            const data = await res.json();
+
+            // 메모리에 저장 (Context + API Utility)
+            saveToken(data.accessToken);
+            setMemoryToken(data.accessToken);
+
+            showAlert(t("login_success_dev"), { title: t("login_success_title") });
+            navigate("/dashboard");
+        } catch (error) {
+            console.error(error);
+            showAlert("개발용 로그인에 실패했습니다.", { title: "로그인 실패" });
+        }
     };
 
     return (

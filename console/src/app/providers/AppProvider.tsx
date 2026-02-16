@@ -4,6 +4,8 @@ import { BrowserRouter } from "react-router-dom";
 import { AlertProvider } from "@/shared/context/AlertContext";
 import { LanguageProvider } from "@/features/dashboard/context/LanguageContext";
 
+import { AuthProvider } from "@/features/auth/context/AuthContext";
+
 interface AppProviderProps {
     children: ReactNode;
 }
@@ -13,8 +15,7 @@ export function AppProvider({ children }: AppProviderProps) {
         <BrowserRouter>
             <LanguageProvider>
                 <AlertProvider>
-                    {/* Add other providers here (Theme, QueryClient, Auth, etc.) */}
-                    {children}
+                    <AuthProvider>{children}</AuthProvider>
                 </AlertProvider>
             </LanguageProvider>
         </BrowserRouter>
