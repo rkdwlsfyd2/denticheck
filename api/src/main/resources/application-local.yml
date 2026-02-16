@@ -49,6 +49,11 @@ milvus:
         fields: ${MILVUS_OUTPUT_FIELDS:text,source,tags}
     top-k: ${MILVUS_TOP_K:8}
 
+upload:
+    storage:
+        local-dir: ${UPLOAD_LOCAL_DIR:./uploads/community}
+        base-url: ${UPLOAD_BASE_URL:http://localhost:8080/uploads/community}
+
 report:
     storage:
         type: ${REPORT_STORAGE_TYPE:local}

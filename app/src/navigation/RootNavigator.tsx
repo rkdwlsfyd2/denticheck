@@ -12,7 +12,7 @@ import InsuranceProductsScreen from "../screens/InsuranceProductsScreen";
 import HospitalDetailScreen from "../screens/HospitalDetailScreen";
 import ProductDetailScreen from "../screens/ProductDetailScreen";
 import CartScreen from "../screens/CartScreen";
-import CommentListScreen from "../screens/CommentListScreen";
+import CommentListScreen from "../screens/community/CommentListScreen";
 import NotificationSettingsScreen from "../screens/NotificationSettingsScreen";
 import CustomerServiceScreen from "../screens/CustomerServiceScreen";
 import TermsPoliciesScreen from "../screens/TermsPoliciesScreen";

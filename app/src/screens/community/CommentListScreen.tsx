@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingVi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, Send, Heart, MoreHorizontal } from 'lucide-react-native';
-import { useColorTheme } from '../shared/providers/ColorThemeProvider';
+import { useColorTheme } from '../../shared/providers/ColorThemeProvider';
 
 export default function CommentListScreen() {
     const navigation = useNavigation();

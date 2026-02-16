@@ -1,0 +1,59 @@
+# 커뮤니티 게시글
+type PostTag {
+  type: String!
+  name: String!
+}
+
+type Post {
+  id: ID!
+  author: String!
+  authorInitial: String!
+  content: String!
+  """이미지 URL 목록 (표시 순서, 최대 4장)"""
+  images: [String!]!
+  tags: [PostTag!]!
+  likes: Int!
+  comments: Int!
+  createdAt: String
+  postType: String
+  """현재 로그인 사용자가 작성한 글인지 (삭제 버튼 여부용)"""
+  isMine: Boolean!
+  """현재 로그인 사용자가 좋아요 눌렀는지"""
+  isLiked: Boolean!
+}
+
+input CreatePostInput {
+  content: String!
+  postType: String
+  dentalIds: [ID!]
+  """이미지 URL 목록 (최대 4장, 업로드 후 받은 URL 전달)"""
+  imageUrls: [String!]
+}
+
+# 치과(병원) - load_dentals.py로 적재된 데이터
+type Dental {
+  id: ID!
+  name: String!
+  address: String
+  phone: String
+}
+
+extend type Query {
+  """최신순. limit 기본 10, offset 기본 0 (페이징). postType 있으면 해당 종류만 (product | hospital)"""
+  posts(limit: Int, offset: Int, postType: String): [Post!]!
+  dentals(name: String, limit: Int): [Dental!]!
+}
+
+"""좋아요 토글 결과"""
+type PostLikeResult {
+  isLiked: Boolean!
+  likeCount: Int!
+}
+
+extend type Mutation {
+  createPost(input: CreatePostInput!): Post!
+  """본인 게시글만 삭제 가능"""
+  deletePost(id: ID!): Boolean!
+  """게시글 좋아요 토글 (로그인 필요)"""
+  togglePostLike(postId: ID!): PostLikeResult!
+}

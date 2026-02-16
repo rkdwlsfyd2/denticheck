@@ -101,7 +101,7 @@ public class SecurityConfig {
                         .redirectionEndpoint(endpoint -> endpoint.baseUri("/oauth2/callback/*")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers("/reports/**").permitAll()
+                        .requestMatchers("/reports/**", "/uploads/**").permitAll()
                         .requestMatchers("/oauth2/**", "/oauth2/callback/**").permitAll()
                         .requestMatchers("/auth/mobile/google").permitAll()
                         .requestMatchers("/api/ai-check", "/api/ai-check/**").permitAll()

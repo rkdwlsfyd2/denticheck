@@ -14,10 +14,17 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${report.storage.local-dir:./reports}")
     private String localReportDir;
 
+    @Value("${upload.storage.local-dir:./uploads/community}")
+    private String uploadLocalDir;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         Path reportPath = Paths.get(localReportDir).toAbsolutePath().normalize();
         registry.addResourceHandler("/reports/**")
                 .addResourceLocations(reportPath.toUri().toString());
+
+        Path uploadPath = Paths.get(uploadLocalDir).toAbsolutePath().normalize();
+        registry.addResourceHandler("/uploads/community/**")
+                .addResourceLocations(uploadPath.toUri().toString());
     }
 }

@@ -7,7 +7,7 @@ import AICheckScreen from '../screens/AICheckScreen';
 import ChatbotScreen from '../screens/ChatbotScreen';
 import HospitalsScreen from '../screens/HospitalsScreen';
 import MyPageScreen from '../screens/MyPageScreen';
-import CommunityScreen from '../screens/CommunityScreen';
+import CommunityScreen from '../screens/community/CommunityScreen';
 
 const Tab = createBottomTabNavigator();
 
