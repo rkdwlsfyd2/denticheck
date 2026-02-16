@@ -1,10 +1,11 @@
 package com.denticheck.api.common.exception.user;
 
+import com.denticheck.api.common.exception.BusinessException;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 @Getter
-@RequiredArgsConstructor
-public class UserException extends RuntimeException {
-    private final UserErrorCode errorCode;
+public class UserException extends BusinessException {
+    public UserException(UserErrorCode errorCode) {
+        super(errorCode);
+    }
 }

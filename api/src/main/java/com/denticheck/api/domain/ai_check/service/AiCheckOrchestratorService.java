@@ -29,6 +29,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import com.denticheck.api.common.exception.ai_check.AiCheckException;
+import com.denticheck.api.common.exception.ai_check.AiCheckErrorCode;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -108,13 +111,12 @@ public class AiCheckOrchestratorService {
                     .qualityReasons(qualityReasons)
                     .detections(detections)
                     .summary(summary)
-                    .llmResult(llmResult)
                     .pdfUrl(pdfUrl)
                     .rag(toRagSummary(Collections.emptyList()))
                     .build();
         } catch (Exception e) {
             log.error("AI check pipeline failed", e);
-            return errorResponse(sessionId, storageKey, imageUrl, "pipeline_error");
+            throw new AiCheckException(AiCheckErrorCode.AI_ANALYSIS_FAILED);
         }
     }
 
@@ -124,10 +126,10 @@ public class AiCheckOrchestratorService {
         String imageUrl = "local";
 
         if (file == null || file.isEmpty()) {
-            return quickErrorResponse(sessionId, storageKey, imageUrl, "empty_file");
+            throw new IllegalArgumentException("파일이 비어있습니다.");
         }
         if (!isAllowedImage(file.getOriginalFilename())) {
-            return quickErrorResponse(sessionId, storageKey, imageUrl, "unsupported_extension");
+            throw new IllegalArgumentException("지원하지 않는 파일 형식입니다.");
         }
 
         try {
@@ -167,7 +169,7 @@ public class AiCheckOrchestratorService {
                     .build();
         } catch (Exception e) {
             log.error("AI quick check failed", e);
-            return quickErrorResponse(sessionId, storageKey, imageUrl, "pipeline_error");
+            throw new AiCheckException(AiCheckErrorCode.AI_ANALYSIS_FAILED);
         }
     }
 
@@ -411,20 +413,6 @@ public class AiCheckOrchestratorService {
                 .summary(Collections.emptyMap())
                 .llmResult(llmResult)
                 .pdfUrl(pdfUrl)
-                .build();
-    }
-
-    private AiCheckRunResponse quickErrorResponse(String sessionId, String storageKey, String imageUrl, String reason) {
-        return AiCheckRunResponse.builder()
-                .sessionId(sessionId)
-                .status("error")
-                .storageKey(storageKey)
-                .imageUrl(imageUrl)
-                .qualityPass(false)
-                .qualityScore(0.0)
-                .qualityReasons(List.of(reason))
-                .detections(Collections.emptyList())
-                .summary(Collections.emptyMap())
                 .build();
     }
 

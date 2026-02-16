@@ -21,6 +21,12 @@ import com.denticheck.api.domain.user.entity.UserEntity;
 import com.denticheck.api.domain.user.entity.UserStatusType;
 import com.denticheck.api.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.common.exception.user.UserErrorCode;
+import com.denticheck.api.common.exception.hospital.HospitalException;
+import com.denticheck.api.common.exception.hospital.HospitalErrorCode;
+import com.denticheck.api.common.exception.admin.AdminException;
+import com.denticheck.api.common.exception.admin.AdminErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,7 +53,7 @@ public class AdminServiceImpl implements AdminService {
                 String username = org.springframework.security.core.context.SecurityContextHolder.getContext()
                                 .getAuthentication().getName();
                 UserEntity user = userRepository.findByUsername(username)
-                                .orElseThrow(() -> new RuntimeException("User not found"));
+                                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
                 return AdminUserDTO.builder()
                                 .id(user.getId().toString())
@@ -153,7 +159,7 @@ public class AdminServiceImpl implements AdminService {
         @Transactional
         public AdminUserDTO updateUserStatus(String userId, String status) {
                 UserEntity user = userRepository.findById(java.util.UUID.fromString(userId))
-                                .orElseThrow(() -> new RuntimeException("User not found"));
+                                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
                 user.updateStatus(UserStatusType.valueOf(status));
                 userRepository.saveAndFlush(user);
@@ -359,7 +365,7 @@ public class AdminServiceImpl implements AdminService {
         @Transactional
         public AdminDentistDTO updateHospital(String id, HospitalInputDTO input) {
                 HospitalEntity hospital = hospitalRepository.findById(java.util.UUID.fromString(id))
-                                .orElseThrow(() -> new RuntimeException("Hospital not found"));
+                                .orElseThrow(() -> new HospitalException(HospitalErrorCode.HOSPITAL_NOT_FOUND));
                 hospital.update(input.getName(), input.getAddress(), input.getPhone(),
                                 input.getDescription(), input.getLatitude(), input.getLongitude(),
                                 input.getHomepageUrl());
@@ -378,7 +384,7 @@ public class AdminServiceImpl implements AdminService {
         @Transactional
         public AdminProductDTO updateProduct(String id, ProductInputDTO input) {
                 PartnerProduct product = partnerProductRepository.findById(Long.parseLong(id))
-                                .orElseThrow(() -> new RuntimeException("Product not found"));
+                                .orElseThrow(() -> new AdminException(AdminErrorCode.PRODUCT_NOT_FOUND));
                 product.update(input.getCategory(), input.getName(), input.getPrice(),
                                 input.getManufacturer(), input.getImageUrl());
                 partnerProductRepository.saveAndFlush(product);
@@ -398,7 +404,7 @@ public class AdminServiceImpl implements AdminService {
         @Transactional
         public AdminInsuranceDTO updateInsurance(String id, InsuranceInputDTO input) {
                 InsuranceProduct insurance = insuranceProductRepository.findById(Long.parseLong(id))
-                                .orElseThrow(() -> new RuntimeException("Insurance not found"));
+                                .orElseThrow(() -> new AdminException(AdminErrorCode.INSURANCE_NOT_FOUND));
                 insurance.update(input.getCategory(), input.getName(), input.getPrice(), input.getCompany());
                 insuranceProductRepository.saveAndFlush(insurance);
                 return AdminInsuranceDTO.builder()
@@ -416,7 +422,7 @@ public class AdminServiceImpl implements AdminService {
         @Transactional
         public AdminDentistDTO updateHospitalPartnerStatus(String id, boolean isPartner) {
                 HospitalEntity hospital = hospitalRepository.findById(java.util.UUID.fromString(id))
-                                .orElseThrow(() -> new RuntimeException("Hospital not found"));
+                                .orElseThrow(() -> new HospitalException(HospitalErrorCode.HOSPITAL_NOT_FOUND));
                 hospital.updatePartnerStatus(isPartner);
                 hospitalRepository.saveAndFlush(hospital);
                 return AdminDentistDTO.builder()
@@ -432,7 +438,7 @@ public class AdminServiceImpl implements AdminService {
         @Transactional
         public AdminProductDTO updateProductPartnerStatus(String id, boolean isPartner) {
                 PartnerProduct product = partnerProductRepository.findById(Long.parseLong(id))
-                                .orElseThrow(() -> new RuntimeException("Product not found"));
+                                .orElseThrow(() -> new AdminException(AdminErrorCode.PRODUCT_NOT_FOUND));
                 product.updatePartnerStatus(isPartner);
                 partnerProductRepository.saveAndFlush(product);
                 return AdminProductDTO.builder()
@@ -450,7 +456,7 @@ public class AdminServiceImpl implements AdminService {
         @Transactional
         public AdminInsuranceDTO updateInsurancePartnerStatus(String id, boolean isPartner) {
                 InsuranceProduct insurance = insuranceProductRepository.findById(Long.parseLong(id))
-                                .orElseThrow(() -> new RuntimeException("Insurance not found"));
+                                .orElseThrow(() -> new AdminException(AdminErrorCode.INSURANCE_NOT_FOUND));
                 insurance.updatePartnerStatus(isPartner);
                 insuranceProductRepository.saveAndFlush(insurance);
                 return AdminInsuranceDTO.builder()

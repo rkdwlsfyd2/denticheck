@@ -12,8 +12,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import com.denticheck.api.common.exception.user.UserErrorCode;
-import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.common.exception.auth.AuthErrorCode;
+import com.denticheck.api.common.exception.auth.AuthException;
 import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -46,7 +46,7 @@ public class JwtServiceImpl implements JwtService {
         // 쿠키 리스트에서 Refresh 쿠키 확인
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
-            throw new UserException(UserErrorCode.REFRESH_TOKEN_NOT_FOUND);
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         // Refresh 토큰 획득
@@ -59,16 +59,16 @@ public class JwtServiceImpl implements JwtService {
         }
 
         if (refreshToken == null) {
-            throw new UserException(UserErrorCode.REFRESH_TOKEN_NOT_FOUND);
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         // Refresh 토큰 검증
         if (!jwtUtil.isValid(refreshToken, false)) {
-            throw new UserException(UserErrorCode.REFRESH_TOKEN_NOT_FOUND);
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         if (!existRefresh(refreshToken)) {
-            throw new UserException(UserErrorCode.REFRESH_TOKEN_NOT_FOUND);
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         // 정보 추출
@@ -109,11 +109,11 @@ public class JwtServiceImpl implements JwtService {
 
         // Refresh 토큰 검증
         if (refreshToken == null || !jwtUtil.isValid(refreshToken, false)) {
-            throw new UserException(UserErrorCode.REFRESH_TOKEN_NOT_FOUND);
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         if (!existRefresh(refreshToken)) {
-            throw new UserException(UserErrorCode.REFRESH_TOKEN_NOT_FOUND);
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         // 정보 추출

@@ -17,9 +17,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.common.exception.user.UserErrorCode;
 
 import java.nio.file.AccessDeniedException;
 import java.util.List;
@@ -47,7 +48,7 @@ public class UserServiceImpl implements UserService {
 
         // 조회
         UserEntity entity = userRepository.findByUsername(dto.getUsername())
-                .orElseThrow(() -> new UsernameNotFoundException(dto.getUsername()));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
         // 회원 정보 수정
         entity.updateUser(dto);
@@ -84,7 +85,7 @@ public class UserServiceImpl implements UserService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         UserEntity entity = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("해당 유저를 찾을 수 없습니다: " + username));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
         return UserResponseDTO.builder()
                 .nickname(entity.getNickname())
@@ -133,7 +134,7 @@ public class UserServiceImpl implements UserService {
                     log.info("Creating new user {} with role: {} (Email: {})", username, roleName, email);
 
                     RoleEntity role = roleRepository.findByName(roleName)
-                            .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
+                            .orElseThrow(() -> new UserException(UserErrorCode.ROLE_NOT_FOUND));
 
                     UserEntity newUser = UserEntity.builder()
                             .username(username)

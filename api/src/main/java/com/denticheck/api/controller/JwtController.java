@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.ResponseEntity;
-import com.denticheck.api.common.exception.user.UserErrorCode;
-import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.common.exception.auth.AuthErrorCode;
+import com.denticheck.api.common.exception.auth.AuthException;
 
 @RestController
 @RequiredArgsConstructor
@@ -51,7 +51,7 @@ public class JwtController {
         }
 
         if (refreshToken == null || refreshToken.isBlank()) {
-            throw new UserException(UserErrorCode.REFRESH_TOKEN_NOT_FOUND);
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         dto.setRefreshToken(refreshToken);

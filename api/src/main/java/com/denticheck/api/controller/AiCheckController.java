@@ -23,6 +23,9 @@ public class AiCheckController {
 
     @PostMapping(value = "/ai-check", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public AiCheckRunResponse runAiCheck(@RequestPart("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("파일이 비어있습니다.");
+        }
         return aiCheckOrchestratorService.run(file);
     }
 

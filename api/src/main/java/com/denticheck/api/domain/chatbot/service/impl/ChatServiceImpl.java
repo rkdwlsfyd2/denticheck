@@ -15,6 +15,8 @@ import com.denticheck.api.infrastructure.external.ai.dto.AiChatAskRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.denticheck.api.domain.chatbot.entity.ChatRole;
+import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.common.exception.user.UserErrorCode;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +40,7 @@ public class ChatServiceImpl implements ChatService {
     public ChatSessionEntity startSession(UUID userId, String channel) {
         log.debug("startSession() 실행");
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         return getOrCreateActiveSession(user, channel);
     }
 
@@ -71,7 +73,7 @@ public class ChatServiceImpl implements ChatService {
         Map<String, Object> payload = request.getPayload();
 
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
         ChatSessionEntity session = getOrCreateActiveSession(user, channel);
 
