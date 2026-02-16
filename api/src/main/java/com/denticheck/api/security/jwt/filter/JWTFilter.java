@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -28,6 +29,9 @@ public class JWTFilter extends OncePerRequestFilter {
 
     private final JWTUtil jwtUtil;
     private final RoleHierarchy roleHierarchy;
+
+    @Value("${jwt.enable-development-tokens:false}")
+    private boolean enableDevelopmentTokens;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -62,34 +66,33 @@ public class JWTFilter extends OncePerRequestFilter {
         // 토큰 파싱
         String accessToken = authorization.substring("Bearer ".length());
 
-        // ✅ [관리자 기능] 테스트를 위한 개발용 임시 토큰 처리
-        // 프론트엔드 또는 Postman 등에서 'Authorization: Bearer admin-test-token-2026' 헤더 사용 시
-        // ADMIN 권한 부여
-        if ("temp_access_token_for_test".equals(accessToken) ||
-                "admin-test-token-2026".equals(accessToken) ||
-                "access_token_for_admin_test".equals(accessToken)) {
-            log.info("Temporary Test Admin Token detected. Granting ROLE_ADMIN.");
-            Authentication auth = new UsernamePasswordAuthenticationToken(
-                    "admin_test",
-                    null,
-                    roleHierarchy.getReachableGrantedAuthorities(
-                            Collections
-                                    .singletonList(new SimpleGrantedAuthority("ROLE_" + UserRoleType.ADMIN.name()))));
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            filterChain.doFilter(request, response);
-            return;
-        }
+        // ✅ [관리자 기능] 테스트를 위한 개발용 임시 토큰 처리 (설정에서 활성화된 경우만)
+        if (enableDevelopmentTokens) {
+            if ("devAccessToken-admin".equals(accessToken)) {
+                log.info("Development Admin Token detected. Granting ROLE_ADMIN.");
+                Authentication auth = new UsernamePasswordAuthenticationToken(
+                        "admin_test",
+                        null,
+                        roleHierarchy.getReachableGrantedAuthorities(
+                                Collections.singletonList(
+                                        new SimpleGrantedAuthority("ROLE_" + UserRoleType.ADMIN.name()))));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+                filterChain.doFilter(request, response);
+                return;
+            }
 
-        if ("access_token_for_user_test".equals(accessToken)) {
-            log.info("Temporary Test User Token detected. Granting ROLE_USER.");
-            Authentication auth = new UsernamePasswordAuthenticationToken(
-                    "user1",
-                    null,
-                    roleHierarchy.getReachableGrantedAuthorities(
-                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + UserRoleType.USER.name()))));
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            filterChain.doFilter(request, response);
-            return;
+            if ("devAccessToken-user".equals(accessToken)) {
+                log.info("Development User Token detected. Granting ROLE_USER.");
+                Authentication auth = new UsernamePasswordAuthenticationToken(
+                        "user1",
+                        null,
+                        roleHierarchy.getReachableGrantedAuthorities(
+                                Collections.singletonList(
+                                        new SimpleGrantedAuthority("ROLE_" + UserRoleType.USER.name()))));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+                filterChain.doFilter(request, response);
+                return;
+            }
         }
 
         if (jwtUtil.isValid(accessToken, true)) {

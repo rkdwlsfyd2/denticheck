@@ -12,6 +12,7 @@ import com.denticheck.api.domain.user.repository.UserRepository;
 import com.denticheck.api.domain.user.service.UserService;
 import com.denticheck.api.security.jwt.service.impl.JwtServiceImpl;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -113,7 +115,7 @@ public class UserServiceImpl implements UserService {
 
         return userRepository.findWithRoleByUsername(username)
                 .map(entity -> {
-                    // 기존 유저 정보 업데이트
+                    // [Step 1-3] 기존 유저가 있으면 정보만 업데이트하고 성공 처리
                     UserRequestDTO dto = new UserRequestDTO();
                     dto.setEmail(email);
                     dto.setNickname(nickname);
@@ -122,17 +124,16 @@ public class UserServiceImpl implements UserService {
                     return entity;
                 })
                 .orElseGet(() -> {
-                    // 신규 유저 생성
-                    String roleName;
-                    if (email != null && adminEmails != null && adminEmails.contains(email)) {
-                        roleName = UserRoleType.ADMIN.name();
-                    } else {
-                        roleName = UserRoleType.USER.name();
-                    }
+                    // [Step 1-4] 없으면 신규 유저 생성
+                    // [Step 1-4-1] 이메일이 admin-emails에 포함되어 있는지 확인하여 권한 부여
+                    String roleName = (email != null && adminEmails != null && adminEmails.contains(email))
+                            ? UserRoleType.ADMIN.name()
+                            : UserRoleType.USER.name();
 
-                    String finalRoleName = roleName;
-                    RoleEntity role = roleRepository.findByName(finalRoleName)
-                            .orElseThrow(() -> new RuntimeException("Role not found: " + finalRoleName));
+                    log.info("Creating new user {} with role: {} (Email: {})", username, roleName, email);
+
+                    RoleEntity role = roleRepository.findByName(roleName)
+                            .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
 
                     UserEntity newUser = UserEntity.builder()
                             .username(username)

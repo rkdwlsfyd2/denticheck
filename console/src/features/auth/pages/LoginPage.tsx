@@ -1,12 +1,27 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
 import { useAlert } from "@/shared/context/AlertContext";
+import { useLanguage } from "@/features/dashboard/context/LanguageContext";
+import { Globe } from "lucide-react";
 
 // .env로 부터 백엔드 URL 받아오기
 const BACKEND_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 export function LoginPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { showAlert } = useAlert();
+    const { lang, toggleLang, t } = useLanguage();
+
+    // 에러 파라미터 처리 (관리자 권한 없음 등)
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error === "forbidden") {
+            showAlert(t("login_error_forbidden"), { title: t("login_error_title") });
+            // 파라미터 제거 (URL 깔끔하게 유지)
+            navigate("/login", { replace: true });
+        }
+    }, [searchParams, showAlert, navigate, t]);
 
     // 소셜 로그인 이벤트
     const handleSocialLogin = (provider: string) => {
@@ -15,21 +30,32 @@ export function LoginPage() {
 
     // 개발용 로그인 이벤트
     const handleDevLogin = () => {
-        const devToken = "admin-test-token-2026";
+        const devToken = "devAccessToken-admin";
         localStorage.setItem("accessToken", devToken);
         // refreshToken은 Dev Login에서 처리하지 않음 (필요시 더미 값 설정)
         localStorage.setItem("refreshToken", "dev-refresh-token");
 
-        showAlert("개발자 계정으로 로그인되었습니다.", { title: "로그인 성공" });
+        showAlert(t("login_success_dev"), { title: t("login_success_title") });
         navigate("/dashboard");
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 relative">
+            {/* Language Toggle Button */}
+            <div className="absolute top-6 right-6">
+                <button
+                    onClick={toggleLang}
+                    className="flex items-center justify-center gap-2 w-24 px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors shadow-sm"
+                >
+                    <Globe className="w-3 h-3" />
+                    <span>{lang === "ko" ? t("lang_ko") : t("lang_en")}</span>
+                </button>
+            </div>
+
             <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">DentiCheck Console</h1>
-                    <p className="text-slate-500">관리자 로그인을 진행해주세요.</p>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">{t("login_title")}</h1>
+                    <p className="text-slate-500">{t("login_desc")}</p>
                 </div>
 
                 <div className="space-y-4">
@@ -42,7 +68,7 @@ export function LoginPage() {
                             alt="Google"
                             className="w-5 h-5"
                         />
-                        Google 계정으로 계속하기
+                        {t("login_google")}
                     </button>
 
                     <div className="relative my-6">
@@ -50,7 +76,7 @@ export function LoginPage() {
                             <div className="w-full border-t border-slate-200"></div>
                         </div>
                         <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-white text-slate-500">Or continue with</span>
+                            <span className="px-2 bg-white text-slate-500">{t("login_or_continue")}</span>
                         </div>
                     </div>
 
@@ -58,7 +84,7 @@ export function LoginPage() {
                         onClick={handleDevLogin}
                         className="w-full px-4 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors font-medium shadow-sm"
                     >
-                        Dev Login (개발용)
+                        {t("login_dev_admin")}
                     </button>
                 </div>
 

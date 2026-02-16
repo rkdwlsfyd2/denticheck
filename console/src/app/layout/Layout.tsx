@@ -8,8 +8,9 @@ import { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Users, Building, Package, Shield, Globe, LogOut } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { LanguageProvider, useLanguage } from "@/features/dashboard/context/LanguageContext";
+import { useLanguage } from "@/features/dashboard/context/LanguageContext";
 import { fetchAdminMe } from "@/shared/lib/api";
+import * as authApi from "@/shared/lib/authApi";
 
 const sidebarItems = [
     { name: "menu_dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -40,7 +41,10 @@ function LayoutContent() {
         loadMe();
     }, []);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        // 서버 로그아웃 시도 (실패하더라도 로컬 세션은 정리)
+        await authApi.logout();
+
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
         navigate("/login");
@@ -57,10 +61,10 @@ function LayoutContent() {
                 <div className="px-6 pb-4">
                     <button
                         onClick={toggleLang}
-                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+                        className="flex items-center justify-center gap-2 w-24 px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
                     >
                         <Globe className="w-3 h-3" />
-                        <span>{lang === "ko" ? "한국어" : "English"}</span>
+                        <span>{lang === "ko" ? t("lang_ko") : t("lang_en")}</span>
                     </button>
                 </div>
 
@@ -92,7 +96,7 @@ function LayoutContent() {
                         className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                     >
                         <LogOut className="h-5 w-5" />
-                        로그아웃
+                        {t("btn_logout")}
                     </button>
                 </div>
             </aside>
@@ -105,9 +109,9 @@ function LayoutContent() {
                                 "menu_dashboard",
                         )}
                     </h1>
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm font-medium text-slate-600">
-                            안녕하세요, <span className="text-slate-900 font-bold">{nickname}</span>님
+                    <div className="flex items-center gap-4 min-w-[180px] justify-end">
+                        <span className="text-sm font-medium text-slate-600 truncate">
+                            {t("hello_user", { name: nickname })}
                         </span>
                         <div className="h-8 w-8 rounded-full bg-slate-200 overflow-hidden">
                             {/* 프로필 이미지 있으면 표시, 없으면 기본 아이콘 */}
@@ -126,9 +130,5 @@ function LayoutContent() {
 }
 
 export function Layout() {
-    return (
-        <LanguageProvider>
-            <LayoutContent />
-        </LanguageProvider>
-    );
+    return <LayoutContent />;
 }

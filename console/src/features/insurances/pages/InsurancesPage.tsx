@@ -74,7 +74,7 @@ export function InsurancesPage() {
         const { id } = deleteConfirm;
         try {
             await graphqlRequest(DELETE_INSURANCE_MUTATION, { id });
-            showAlert("보험 상품이 삭제되었습니다.", { title: "성공" });
+            showAlert(t("msg_delete_success"), { title: t("title_success") });
             fetchInsurances();
         } catch (error) {
             console.error(error);
@@ -126,16 +126,16 @@ export function InsurancesPage() {
 
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
+                    <table className="w-full text-sm text-left table-fixed">
                         <thead className="bg-slate-50 text-slate-500 font-medium border-b">
                             <tr>
-                                <th className="px-6 py-3 font-medium">NO</th>
-                                <th className="px-6 py-3 font-medium">{t("th_category")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_product_name")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_company")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_price")}</th>
-                                <th className="px-6 py-3 font-medium text-center">{t("th_partner")}</th>
-                                <th className="px-6 py-3 font-medium text-center">{t("th_action")}</th>
+                                <th className="px-6 py-3 font-medium w-20 text-center">NO</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_category")}</th>
+                                <th className="px-6 py-3 font-medium text-left">{t("th_product_name")}</th>
+                                <th className="px-6 py-3 font-medium w-40 text-center">{t("th_company")}</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_price")}</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_partner")}</th>
+                                <th className="px-6 py-3 font-medium w-48 text-center">{t("th_action")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -154,11 +154,15 @@ export function InsurancesPage() {
                             ) : (
                                 insurances.map((insurance) => (
                                     <tr key={insurance.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-slate-900">{insurance.displayId}</td>
-                                        <td className="px-6 py-4 text-slate-600">{insurance.category}</td>
-                                        <td className="px-6 py-4 text-slate-900 font-medium">{insurance.name}</td>
-                                        <td className="px-6 py-4 text-slate-600">{insurance.company}</td>
-                                        <td className="px-6 py-4 text-slate-600">
+                                        <td className="px-6 py-4 font-medium text-slate-900 text-center">
+                                            {insurance.displayId}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 text-center">{insurance.category}</td>
+                                        <td className="px-6 py-4 text-slate-900 font-medium text-left">
+                                            {insurance.name}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 text-center">{insurance.company}</td>
+                                        <td className="px-6 py-4 text-slate-600 text-center">
                                             ₩{insurance.price.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 text-center">
@@ -245,10 +249,10 @@ export function InsurancesPage() {
                 isOpen={deleteConfirm.isOpen}
                 onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
                 onConfirm={handleConfirmDelete}
-                title="보험 상품 삭제"
-                message={`'${deleteConfirm.name}' 보험 상품을 삭제하시겠습니까?`}
+                title={t("title_confirm")}
+                message={t("msg_confirm_delete", { name: deleteConfirm.name })}
                 isDestructive={true}
-                confirmLabel="삭제"
+                confirmLabel={t("btn_delete")}
             />
         </div>
     );

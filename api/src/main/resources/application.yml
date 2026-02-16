@@ -12,6 +12,7 @@ jwt:
     secret-key: himynameiskimjihunmyyoutubechann
     accessTokenExpiresIn: 1h
     refreshTokenExpiresIn: 30d
+    enable-development-tokens: false
 
 logging:
     level:

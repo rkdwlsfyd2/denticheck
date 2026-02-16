@@ -73,6 +73,12 @@ public class JwtServiceImpl implements JwtService {
         String username = jwtUtil.getUsername(refreshToken);
         String role = jwtUtil.getRole(refreshToken);
 
+        // 관리자 콘솔 접근 권한 실시간 검증 (ROLE_ADMIN 필수)
+        if (!"ROLE_ADMIN".equals(role)) {
+            log.warn("Access Denied for non-admin user in cookie exchange: {} (Role: {})", username, role);
+            throw new RuntimeException("관리자 권한이 없습니다.");
+        }
+
         // 토큰 생성
         String newAccessToken = jwtUtil.createAccessJWT(username, role);
         String newRefreshToken = jwtUtil.createRefreshJWT(username, role);
@@ -116,6 +122,8 @@ public class JwtServiceImpl implements JwtService {
         // 정보 추출
         String username = jwtUtil.getUsername(refreshToken);
         String role = jwtUtil.getRole(refreshToken);
+
+        log.info("Token Rotated for user: {} (Role: {})", username, role);
 
         // 토큰 생성
         String newAccessToken = jwtUtil.createAccessJWT(username, role);

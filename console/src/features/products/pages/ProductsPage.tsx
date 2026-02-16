@@ -75,7 +75,7 @@ export function ProductsPage() {
         const { id } = deleteConfirm;
         try {
             await graphqlRequest(DELETE_PRODUCT_MUTATION, { id });
-            showAlert("상품이 삭제되었습니다.", { title: "성공" });
+            showAlert(t("msg_delete_success"), { title: t("title_success") });
             fetchProducts();
         } catch (error) {
             console.error(error);
@@ -128,16 +128,16 @@ export function ProductsPage() {
 
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
+                    <table className="w-full text-sm text-left table-fixed">
                         <thead className="bg-slate-50 text-slate-500 font-medium border-b">
                             <tr>
-                                <th className="px-6 py-3 font-medium">NO</th>
-                                <th className="px-6 py-3 font-medium">{t("th_category")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_product_name")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_manufacturer")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_price")}</th>
-                                <th className="px-6 py-3 font-medium text-center">{t("th_partner")}</th>
-                                <th className="px-6 py-3 font-medium text-center">{t("th_action")}</th>
+                                <th className="px-6 py-3 font-medium w-20 text-center">NO</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_category")}</th>
+                                <th className="px-6 py-3 font-medium text-left">{t("th_product_name")}</th>
+                                <th className="px-6 py-3 font-medium w-40 text-center">{t("th_manufacturer")}</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_price")}</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_partner")}</th>
+                                <th className="px-6 py-3 font-medium w-48 text-center">{t("th_action")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -156,9 +156,11 @@ export function ProductsPage() {
                             ) : (
                                 products.map((product) => (
                                     <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-slate-900">{product.displayId}</td>
-                                        <td className="px-6 py-4 text-slate-600">{product.category}</td>
-                                        <td className="px-6 py-4 text-slate-900 font-medium">
+                                        <td className="px-6 py-4 font-medium text-slate-900 text-center">
+                                            {product.displayId}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 text-center">{product.category}</td>
+                                        <td className="px-6 py-4 text-slate-900 font-medium text-left">
                                             <div className="flex items-center gap-3">
                                                 {product.imageUrl && (
                                                     <img
@@ -170,8 +172,10 @@ export function ProductsPage() {
                                                 {product.name}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600">{product.manufacturer}</td>
-                                        <td className="px-6 py-4 text-slate-600">₩{product.price.toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-slate-600 text-center">{product.manufacturer}</td>
+                                        <td className="px-6 py-4 text-slate-600 text-center">
+                                            ₩{product.price.toLocaleString()}
+                                        </td>
                                         <td className="px-6 py-4 text-center">
                                             <span
                                                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
@@ -256,10 +260,10 @@ export function ProductsPage() {
                 isOpen={deleteConfirm.isOpen}
                 onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
                 onConfirm={handleConfirmDelete}
-                title="상품 삭제"
-                message={`'${deleteConfirm.name}' 상품을 삭제하시겠습니까?`}
+                title={t("title_confirm")}
+                message={t("msg_confirm_delete", { name: deleteConfirm.name })}
                 isDestructive={true}
-                confirmLabel="삭제"
+                confirmLabel={t("btn_delete")}
             />
         </div>
     );

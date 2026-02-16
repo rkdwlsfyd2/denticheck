@@ -71,7 +71,7 @@ export function DentistsPage() {
         const { id } = deleteConfirm;
         try {
             await graphqlRequest(DELETE_DENTIST_MUTATION, { id });
-            showAlert("치과가 삭제되었습니다.", { title: "성공" });
+            showAlert(t("msg_delete_success"), { title: t("title_success") });
             fetchDentists();
         } catch (error) {
             console.error(error);
@@ -121,15 +121,15 @@ export function DentistsPage() {
 
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
+                    <table className="w-full text-sm text-left table-fixed">
                         <thead className="bg-slate-50 text-slate-500 font-medium border-b">
                             <tr>
-                                <th className="px-6 py-3 font-medium">NO</th>
-                                <th className="px-6 py-3 font-medium">{t("th_hospital_name")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_address")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_phone")}</th>
-                                <th className="px-6 py-3 font-medium text-center">{t("th_partner")}</th>
-                                <th className="px-6 py-3 font-medium text-center">{t("th_action")}</th>
+                                <th className="px-6 py-3 font-medium w-20 text-center">NO</th>
+                                <th className="px-6 py-3 font-medium w-1/3 text-left">{t("th_hospital_name")}</th>
+                                <th className="px-6 py-3 font-medium text-left">{t("th_address")}</th>
+                                <th className="px-6 py-3 font-medium w-40 text-center">{t("th_phone")}</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_partner")}</th>
+                                <th className="px-6 py-3 font-medium w-48 text-center">{t("th_action")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -148,10 +148,14 @@ export function DentistsPage() {
                             ) : (
                                 dentists.map((dentist) => (
                                     <tr key={dentist.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-slate-900">{dentist.displayId}</td>
-                                        <td className="px-6 py-4 text-slate-900 font-medium">{dentist.name}</td>
-                                        <td className="px-6 py-4 text-slate-600">{dentist.address}</td>
-                                        <td className="px-6 py-4 text-slate-600">{dentist.phone}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-900 text-center">
+                                            {dentist.displayId}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-900 font-medium text-left">
+                                            {dentist.name}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 text-left">{dentist.address}</td>
+                                        <td className="px-6 py-4 text-slate-600 text-center">{dentist.phone}</td>
                                         <td className="px-6 py-4 text-center">
                                             <span
                                                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
@@ -236,10 +240,10 @@ export function DentistsPage() {
                 isOpen={deleteConfirm.isOpen}
                 onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
                 onConfirm={handleConfirmDelete}
-                title="치과 삭제"
-                message={`'${deleteConfirm.name}' 치과를 삭제하시겠습니까?`}
+                title={t("title_confirm")}
+                message={t("msg_confirm_delete", { name: deleteConfirm.name })}
                 isDestructive={true}
-                confirmLabel="삭제"
+                confirmLabel={t("btn_delete")}
             />
         </div>
     );

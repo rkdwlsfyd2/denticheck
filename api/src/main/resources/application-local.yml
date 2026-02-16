@@ -47,3 +47,6 @@ minio:
 admin:
     web:
         refresh-cookie-secure: false
+
+jwt:
+    enable-development-tokens: true

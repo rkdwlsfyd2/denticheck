@@ -76,15 +76,14 @@ export function UsersPage() {
 
     const handleConfirmUpdate = async () => {
         const { userId, newStatus } = statusConfirm;
-        const action = newStatus === "ACTIVE" ? "활성화" : "정지";
 
         try {
             await graphqlRequest(UPDATE_USER_STATUS_MUTATION, { userId, status: newStatus });
-            showAlert(`사용자 상태가 ${action}되었습니다.`, { title: "알림" });
+            showAlert(t("msg_status_changed"), { title: t("title_success") });
             fetchUsers();
         } catch (error) {
             console.error(error);
-            showAlert("상태 변경에 실패했습니다.", { title: "오류" });
+            showAlert(t("msg_status_fail"), { title: t("title_error") });
         } finally {
             setStatusConfirm((prev) => ({ ...prev, isOpen: false }));
         }
@@ -104,25 +103,25 @@ export function UsersPage() {
                     setFilter={setFilter}
                     onSearch={handleSearch}
                     options={[
-                        { value: "all", label: "전체" },
-                        { value: "email", label: "이메일" },
-                        { value: "nickname", label: "닉네임" },
+                        { value: "all", label: t("filter_all") },
+                        { value: "email", label: t("filter_email") },
+                        { value: "nickname", label: t("filter_nickname") },
                     ]}
                 />
             </div>
 
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
+                    <table className="w-full text-sm text-left table-fixed">
                         <thead className="bg-slate-50 text-slate-500 font-medium border-b">
                             <tr>
-                                <th className="px-6 py-3 font-medium">NO</th>
-                                <th className="px-6 py-3 font-medium">{t("th_nickname")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_email")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_role")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_status")}</th>
-                                <th className="px-6 py-3 font-medium">{t("th_created_at")}</th>
-                                <th className="px-6 py-3 font-medium text-right">{t("th_action")}</th>
+                                <th className="px-6 py-3 font-medium w-20 text-center">NO</th>
+                                <th className="px-6 py-3 font-medium w-40 text-center">{t("th_nickname")}</th>
+                                <th className="px-6 py-3 font-medium text-left">{t("th_email")}</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_role")}</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_status")}</th>
+                                <th className="px-6 py-3 font-medium w-40 text-center">{t("th_created_at")}</th>
+                                <th className="px-6 py-3 font-medium w-32 text-center">{t("th_action")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -141,10 +140,14 @@ export function UsersPage() {
                             ) : (
                                 users.map((user) => (
                                     <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-slate-900">{user.displayId}</td>
-                                        <td className="px-6 py-4 text-slate-900 font-medium">{user.nickname}</td>
-                                        <td className="px-6 py-4 text-slate-600">{user.email}</td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 font-medium text-slate-900 text-center">
+                                            {user.displayId}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-900 font-medium text-center">
+                                            {user.nickname}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 text-left">{user.email}</td>
+                                        <td className="px-6 py-4 text-center">
                                             <span
                                                 className={`px-2 py-0.5 rounded text-xs font-medium ${
                                                     user.role === "ADMIN"
@@ -155,7 +158,7 @@ export function UsersPage() {
                                                 {t(user.role)}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 text-center">
                                             <span
                                                 className={`px-2 py-0.5 rounded text-xs font-medium ${
                                                     user.status === "ACTIVE"
@@ -168,10 +171,10 @@ export function UsersPage() {
                                                 {t(user.status)}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-500">
+                                        <td className="px-6 py-4 text-slate-500 text-center">
                                             {new Date(user.createdAt).toLocaleDateString()}
                                         </td>
-                                        <td className="px-6 py-4 text-right">
+                                        <td className="px-6 py-4 text-center">
                                             <button
                                                 className="text-blue-600 hover:text-blue-800 font-medium text-sm"
                                                 onClick={() =>
@@ -196,10 +199,13 @@ export function UsersPage() {
                 isOpen={statusConfirm.isOpen}
                 onClose={() => setStatusConfirm((prev) => ({ ...prev, isOpen: false }))}
                 onConfirm={handleConfirmUpdate}
-                title="회원 상태 변경"
-                message={`정말로 사용자를 ${statusConfirm.newStatus === "ACTIVE" ? "활성화" : "정지"} 하시겠습니까?`}
+                title={t("title_confirm")}
+                message={t("msg_confirm_status", {
+                    name: users.find((u) => u.id === statusConfirm.userId)?.nickname || "",
+                    status: statusConfirm.newStatus === "ACTIVE" ? t("btn_activate") : t("btn_suspend"),
+                })}
                 isDestructive={statusConfirm.newStatus === "SUSPENDED"}
-                confirmLabel={statusConfirm.newStatus === "ACTIVE" ? "활성화" : "정지"}
+                confirmLabel={statusConfirm.newStatus === "ACTIVE" ? t("btn_activate") : t("btn_suspend")}
             />
         </div>
     );

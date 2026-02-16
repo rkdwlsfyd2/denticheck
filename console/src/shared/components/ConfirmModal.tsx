@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "@/features/dashboard/context/LanguageContext";
 import { Modal } from "./Modal";
 
 interface ConfirmModalProps {
@@ -18,10 +19,13 @@ export function ConfirmModal({
     onConfirm,
     title,
     message,
-    confirmLabel = "확인",
-    cancelLabel = "취소",
+    confirmLabel,
+    cancelLabel,
     isDestructive = false,
 }: ConfirmModalProps) {
+    const { t } = useLanguage();
+    const finalConfirmLabel = confirmLabel || t("btn_save"); // Default to Save/Confirm
+    const finalCancelLabel = cancelLabel || t("btn_cancel");
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
             <div className="space-y-4">
@@ -31,7 +35,7 @@ export function ConfirmModal({
                         onClick={onClose}
                         className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                     >
-                        {cancelLabel}
+                        {finalCancelLabel}
                     </button>
                     <button
                         onClick={() => {
@@ -42,7 +46,7 @@ export function ConfirmModal({
                             isDestructive ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
                         }`}
                     >
-                        {confirmLabel}
+                        {finalConfirmLabel}
                     </button>
                 </div>
             </div>

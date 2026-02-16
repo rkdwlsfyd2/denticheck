@@ -1,6 +1,6 @@
-import React from 'react';
-import { Search } from 'lucide-react';
-import { useLanguage } from '@/features/dashboard/context/LanguageContext';
+import React from "react";
+import { Search } from "lucide-react";
+import { useLanguage } from "@/features/dashboard/context/LanguageContext";
 
 interface SearchOption {
     value: string;
@@ -24,9 +24,10 @@ export function SearchFilterBar({
     setFilter,
     onSearch,
     options,
-    placeholder = "Search..."
+    placeholder = "Search...",
 }: SearchFilterBarProps) {
     const { t } = useLanguage();
+    const defaultPlaceholder = placeholder || t("placeholder_search");
 
     return (
         <form onSubmit={onSearch} className="flex gap-2">
@@ -35,7 +36,7 @@ export function SearchFilterBar({
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
             >
-                {options.map(opt => (
+                {options.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                         {opt.label}
                     </option>
@@ -45,7 +46,7 @@ export function SearchFilterBar({
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                     type="text"
-                    placeholder={placeholder}
+                    placeholder={defaultPlaceholder}
                     className="pl-9 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 text-sm"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
@@ -55,7 +56,7 @@ export function SearchFilterBar({
                 type="submit"
                 className="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-md hover:bg-slate-900"
             >
-                검색
+                {t("btn_search")}
             </button>
         </form>
     );

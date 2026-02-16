@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "@/features/dashboard/context/LanguageContext";
 import { Modal } from "./Modal";
 
 interface AlertModalProps {
@@ -9,7 +10,10 @@ interface AlertModalProps {
     buttonLabel?: string;
 }
 
-export function AlertModal({ isOpen, onClose, title, message, buttonLabel = "확인" }: AlertModalProps) {
+export function AlertModal({ isOpen, onClose, title, message, buttonLabel }: AlertModalProps) {
+    const { t } = useLanguage();
+    const finalLabel = buttonLabel || t("btn_save"); // Default to Confirm/OK
+
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
             <div className="space-y-4">
@@ -19,7 +23,7 @@ export function AlertModal({ isOpen, onClose, title, message, buttonLabel = "확
                         onClick={onClose}
                         className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
                     >
-                        {buttonLabel}
+                        {finalLabel}
                     </button>
                 </div>
             </div>

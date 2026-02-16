@@ -69,6 +69,10 @@ public class UserEntity extends com.denticheck.api.common.entity.BaseTimeEntity 
         this.userStatusType = status;
     }
 
+    public void updateRole(RoleEntity role) {
+        this.role = role;
+    }
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private java.util.List<com.denticheck.api.domain.hospital.entity.UserHospitalEntity> favorites = new java.util.ArrayList<>();

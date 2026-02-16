@@ -33,6 +33,24 @@ export async function refreshAccessToken(): Promise<string> {
     return data.accessToken;
 }
 
+/**
+ * 서버 측 로그아웃 호출 (리프레시 토큰 무효화)
+ */
+export async function logout(): Promise<void> {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) return;
+
+    try {
+        await fetch(`${BACKEND_API_BASE_URL}/jwt/logout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+        });
+    } catch (error) {
+        console.error("Server-side logout failed:", error);
+    }
+}
+
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;
 }

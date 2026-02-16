@@ -31,24 +31,31 @@ export function RecentInquiriesTable({ data }: RecentInquiriesTableProps) {
                     {/* [관리자 기능] 테이블 헤더 스타일 통일 (bg-slate-50) */}
                     <thead className="bg-slate-50 text-slate-500 font-medium border-b">
                         <tr>
-                            <th className="w-[80px] px-6 py-3 font-medium">{t("th_id")}</th>
-                            <th className="w-[140px] px-6 py-3 font-medium">{t("th_user")}</th>
-                            <th className="w-auto px-6 py-3 font-medium">{t("th_title")}</th>
-                            <th className="w-[160px] px-6 py-3 font-medium">{t("th_date")}</th>
-                            <th className="w-[120px] px-6 py-3 font-medium">{t("th_status")}</th>
+                            <th className="w-[80px] px-6 py-3 font-medium text-center">{t("th_id")}</th>
+                            <th className="w-[140px] px-6 py-3 font-medium text-center">{t("th_user")}</th>
+                            <th className="w-auto px-6 py-3 font-medium text-left">{t("th_title")}</th>
+                            <th className="w-[160px] px-6 py-3 font-medium text-center">{t("th_date")}</th>
+                            <th className="w-[120px] px-6 py-3 font-medium text-center">{t("th_status")}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {inquiries.length > 0 ? (
                             inquiries.map((inquiry) => (
                                 <tr key={inquiry.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-slate-900 truncate">{inquiry.id}</td>
-                                    <td className="px-6 py-4 text-slate-600 truncate">{inquiry.userName}</td>
-                                    <td className="px-6 py-4 text-slate-600 truncate" title={t(inquiry.title)}>
+                                    <td className="px-6 py-4 font-medium text-slate-900 truncate text-center">
+                                        {inquiry.id}
+                                    </td>
+                                    <td className="px-6 py-4 text-slate-600 truncate text-center">
+                                        {inquiry.userName}
+                                    </td>
+                                    <td
+                                        className="px-6 py-4 text-slate-600 truncate text-left"
+                                        title={t(inquiry.title)}
+                                    >
                                         {t(inquiry.title)}
                                     </td>
-                                    <td className="px-6 py-4 text-slate-500 truncate">{inquiry.date}</td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 text-slate-500 truncate text-center">{inquiry.date}</td>
+                                    <td className="px-6 py-4 text-center">
                                         <span
                                             className={cn(
                                                 "px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap",

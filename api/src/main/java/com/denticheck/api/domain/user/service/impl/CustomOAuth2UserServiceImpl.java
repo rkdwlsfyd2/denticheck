@@ -76,6 +76,8 @@ public class CustomOAuth2UserServiceImpl extends DefaultOAuth2UserService {
         String role = "ROLE_" + roleName;
         String username = user.getUsername();
 
+        log.info("User {} loaded with role: {}", username, role);
+
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
 
         return new CustomOAuth2User(attributes, authorities, username);

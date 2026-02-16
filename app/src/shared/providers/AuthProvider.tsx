@@ -187,8 +187,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 picture: "https://via.placeholder.com/150",
                 provider: "dev",
             };
-            // JWTFilter에서 access_token_for_user_test / access_token_for_admin_test 체크함
-            const mockAccessToken = isUser ? "access_token_for_user_test" : "access_token_for_admin_test";
+            // JWTFilter에서 devAccessToken-user / devAccessToken-admin 체크함
+            const mockAccessToken = isUser ? "devAccessToken-user" : "devAccessToken-admin";
             const mockRefreshToken = "dev-refresh-token"; // 리프레시는 딱히 검증 안 함(DB에 없으면 만료 처리될 뿐)
 
             await saveSession(mockAccessToken, mockRefreshToken, mockUser);
