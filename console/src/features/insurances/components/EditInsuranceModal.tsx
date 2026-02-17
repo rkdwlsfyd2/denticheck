@@ -23,7 +23,7 @@ interface EditInsuranceModalProps {
 }
 
 const UPDATE_INSURANCE_MUTATION = `
-    mutation UpdateInsurance($id: String!, $input: InsuranceInput!) {
+    mutation UpdateInsurance($id: ID!, $input: InsuranceInput!) {
         updateInsurance(id: $id, input: $input) {
             id
             name
