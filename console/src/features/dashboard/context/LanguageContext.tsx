@@ -173,6 +173,26 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         login_error_title: { ko: "접근 거부", en: "Access Denied" },
         login_success_dev: { ko: "개발자 계정으로 로그인되었습니다.", en: "Logged in with developer account." },
         login_success_title: { ko: "로그인 성공", en: "Login Success" },
+        // Modals
+        modal_edit_dentist: { ko: "제휴 치과 수정", en: "Edit Dentist" },
+        modal_edit_product: { ko: "제휴 상품 수정", en: "Edit Product" },
+        modal_edit_insurance: { ko: "제휴 보험 수정", en: "Edit Insurance" },
+
+        // Form Labels
+        label_hospital_name: { ko: "병원명", en: "Hospital Name" },
+        label_address: { ko: "주소", en: "Address" },
+        label_phone: { ko: "전화번호", en: "Phone" },
+        label_description: { ko: "설명", en: "Description" },
+        label_homepage: { ko: "홈페이지 URL", en: "Homepage URL" },
+        label_category: { ko: "카테고리", en: "Category" },
+        label_product_name: { ko: "상품명", en: "Product Name" },
+        label_price: { ko: "가격", en: "Price" },
+        label_manufacturer: { ko: "제조사", en: "Manufacturer" },
+        label_image_url: { ko: "이미지 URL", en: "Image URL" },
+        label_insurance_name: { ko: "보험상품명", en: "Insurance Name" },
+        label_company: { ko: "보험사", en: "Company" },
+
+        placeholder_image_url: { ko: "https://example.com/image.jpg", en: "https://example.com/image.jpg" },
     };
 
     const t = (key: string, params?: Record<string, string>) => {

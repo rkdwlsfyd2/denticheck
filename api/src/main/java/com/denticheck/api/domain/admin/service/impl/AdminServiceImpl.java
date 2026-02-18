@@ -27,6 +27,7 @@ import com.denticheck.api.common.exception.hospital.HospitalException;
 import com.denticheck.api.common.exception.hospital.HospitalErrorCode;
 import com.denticheck.api.common.exception.admin.AdminException;
 import com.denticheck.api.common.exception.admin.AdminErrorCode;
+import com.denticheck.api.infrastructure.external.KakaoMapService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +48,7 @@ public class AdminServiceImpl implements AdminService {
         private final PartnerProductRepository partnerProductRepository;
         private final InsuranceProductRepository insuranceProductRepository;
         private final AdminInquiryRepository inquiryRepository;
+        private final KakaoMapService kakaoMapService;
 
         @Override
         public AdminUserDTO getMe() {
@@ -366,9 +368,34 @@ public class AdminServiceImpl implements AdminService {
         public AdminDentistDTO updateHospital(String id, HospitalInputDTO input) {
                 HospitalEntity hospital = hospitalRepository.findById(java.util.UUID.fromString(id))
                                 .orElseThrow(() -> new HospitalException(HospitalErrorCode.HOSPITAL_NOT_FOUND));
-                hospital.update(input.getName(), input.getAddress(), input.getPhone(),
-                                input.getDescription(), input.getLatitude(), input.getLongitude(),
-                                input.getHomepageUrl());
+
+                // Null-safe update: input이 null이면 기존 값 유지
+                String name = input.getName() != null ? input.getName() : hospital.getName();
+                String address = input.getAddress() != null ? input.getAddress() : hospital.getAddress();
+                String phone = input.getPhone() != null ? input.getPhone() : hospital.getPhone();
+                String description = input.getDescription() != null ? input.getDescription()
+                                : hospital.getDescription();
+                Double latitude = input.getLatitude() != null ? input.getLatitude() : hospital.getLatitude();
+                Double longitude = input.getLongitude() != null ? input.getLongitude() : hospital.getLongitude();
+
+                // Auto Geocoding if address changed
+                if (input.getAddress() != null && !input.getAddress().equals(hospital.getAddress())) {
+                        try {
+                                Double[] coords = kakaoMapService.getCoordinates(address);
+                                if (coords != null) {
+                                        latitude = coords[0];
+                                        longitude = coords[1];
+                                }
+                        } catch (Exception e) {
+                                log.error("Geocoding failed for address: {}", address, e);
+                        }
+                }
+
+                String homepageUrl = input.getHomepageUrl() != null ? input.getHomepageUrl()
+                                : hospital.getHomepageUrl();
+
+                hospital.update(name, address, phone, description, latitude, longitude, homepageUrl);
+
                 hospitalRepository.saveAndFlush(hospital);
                 return AdminDentistDTO.builder()
                                 .id(hospital.getId().toString())
@@ -385,8 +412,22 @@ public class AdminServiceImpl implements AdminService {
         public AdminProductDTO updateProduct(String id, ProductInputDTO input) {
                 PartnerProduct product = partnerProductRepository.findById(Long.parseLong(id))
                                 .orElseThrow(() -> new AdminException(AdminErrorCode.PRODUCT_NOT_FOUND));
-                product.update(input.getCategory(), input.getName(), input.getPrice(),
-                                input.getManufacturer(), input.getImageUrl());
+
+                String category = input.getCategory() != null ? input.getCategory() : product.getCategory();
+                String name = input.getName() != null ? input.getName() : product.getName();
+                // int type price matches input type, usually mandatory. If 0 is a valid update,
+                // keep it.
+                // But if logic requires checking for 0 to ignore, add condition. Here assuming
+                // input price is valid if passed.
+                int price = input.getPrice();
+
+                // Optional fields
+                String manufacturer = input.getManufacturer() != null ? input.getManufacturer()
+                                : product.getManufacturer();
+                String imageUrl = input.getImageUrl() != null ? input.getImageUrl() : product.getImageUrl();
+
+                product.update(category, name, price, manufacturer, imageUrl);
+
                 partnerProductRepository.saveAndFlush(product);
                 return AdminProductDTO.builder()
                                 .id(product.getId().toString())
@@ -405,7 +446,14 @@ public class AdminServiceImpl implements AdminService {
         public AdminInsuranceDTO updateInsurance(String id, InsuranceInputDTO input) {
                 InsuranceProduct insurance = insuranceProductRepository.findById(Long.parseLong(id))
                                 .orElseThrow(() -> new AdminException(AdminErrorCode.INSURANCE_NOT_FOUND));
-                insurance.update(input.getCategory(), input.getName(), input.getPrice(), input.getCompany());
+
+                String category = input.getCategory() != null ? input.getCategory() : insurance.getCategory();
+                String name = input.getName() != null ? input.getName() : insurance.getName();
+                int price = input.getPrice();
+                String company = input.getCompany() != null ? input.getCompany() : insurance.getCompany();
+
+                insurance.update(category, name, price, company);
+
                 insuranceProductRepository.saveAndFlush(insurance);
                 return AdminInsuranceDTO.builder()
                                 .id(insurance.getId().toString())

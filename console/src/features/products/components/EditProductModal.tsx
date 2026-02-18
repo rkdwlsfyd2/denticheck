@@ -24,7 +24,7 @@ interface EditProductModalProps {
 }
 
 const UPDATE_PRODUCT_MUTATION = `
-    mutation UpdateProduct($id: String!, $input: ProductInput!) {
+    mutation UpdateProduct($id: ID!, $input: ProductInput!) {
         updateProduct(id: $id, input: $input) {
             id
             name

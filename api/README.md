@@ -18,6 +18,22 @@
 
 `.env.example` 파일을 `.env`로 복사하고 환경에 맞게 수정하세요.
 
+### 비밀 설정 (Secret Configuration)
+
+이 프로젝트는 보안을 위해 API 키와 JWT 비밀키를 Git에 올리지 않습니다.
+프로젝트 루트(`api/src/main/resources`)에 `application-secret.yml` 파일을 생성하고 아래 내용을 추가해야 합니다.
+
+**파일 경로:** `src/main/resources/application-secret.yml`
+
+```yaml
+# application-secret.yml 예시
+kakao:
+  rest-api-key: "각자_발급받은_REST_API_키"
+
+jwt:
+  secret-key: "우리팀만_아는_강력한_비밀키_문자열"
+```
+
 ### 프로젝트 실행
 
 ```bash

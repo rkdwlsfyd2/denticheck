@@ -27,4 +27,7 @@ admin:
 app:
     auth:
         # 콤마(,)로 구분된 관리자 이메일 목록
-        admin-emails: "dkzlshzl99@gmail.com,test-admin@gmail.com"
+        admin-emails: "dkzlshzl99@gmail.com,test-admin@gmail.com,wjdfbsdl4399@gmail.com"
+
+kakao:
+    rest-api-key: ${KAKAO_REST_API_KEY:YOUR_KAKAO_REST_API_KEY_HERE}
