@@ -5,16 +5,19 @@ import com.denticheck.api.domain.dental.entity.DentalEntity;
 import java.util.List;
 
 public interface DentalService {
-    List<DentalEntity> getAllDentals();
+        List<DentalEntity> getAllDentals();
 
-    org.springframework.data.domain.Page<DentalEntity> getNearbyDentals(double latitude, double longitude,
-            double radiusKm,
-            org.springframework.data.domain.Pageable pageable);
+        org.springframework.data.domain.Page<DentalEntity> getNearbyDentals(double latitude, double longitude,
+                        double radiusKm,
+                        org.springframework.data.domain.Pageable pageable);
 
-    List<DentalEntity> getMyFavoriteDentals(String username);
+        List<DentalEntity> searchDentals(String name, int limit);
 
-    List<com.denticheck.api.domain.dental.entity.DentalReviewEntity> getReviews(java.util.UUID dentalId);
+        List<DentalEntity> getMyFavoriteDentals(String username);
 
-    com.denticheck.api.domain.dental.entity.DentalReviewEntity createReview(java.util.UUID dentalId, String username,
-            int rating, String content, java.util.List<String> tags);
+        List<com.denticheck.api.domain.dental.entity.DentalReviewEntity> getReviews(java.util.UUID dentalId);
+
+        com.denticheck.api.domain.dental.entity.DentalReviewEntity createReview(java.util.UUID dentalId,
+                        String username,
+                        int rating, String content, java.util.List<String> tags);
 }
