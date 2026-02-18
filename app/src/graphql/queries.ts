@@ -15,7 +15,6 @@ export const GET_HOSPITALS = gql`
   }
 `;
 
-<<<<<<< HEAD
 export const SEARCH_HOSPITALS = gql`
   query SearchHospitals($latitude: Float!, $longitude: Float!, $radius: Float, $page: Int, $size: Int) {
     searchHospitals(latitude: $latitude, longitude: $longitude, radius: $radius, page: $page, size: $size) {
