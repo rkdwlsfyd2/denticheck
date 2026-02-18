@@ -1,11 +1,18 @@
 package com.denticheck.api.graphql.resolver;
 
 import com.denticheck.api.domain.dental.entity.DentalEntity;
+<<<<<<< HEAD
 import com.denticheck.api.domain.dental.service.DentalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
+=======
+import com.denticheck.api.domain.dental.repository.DentalRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.graphql.data.method.annotation.Argument;
+import org.springframework.graphql.data.method.annotation.QueryMapping;
+>>>>>>> origin/feature/api-service
 import org.springframework.stereotype.Controller;
 
 import java.util.List;
@@ -14,6 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DentalResolver {
 
+<<<<<<< HEAD
     private final DentalService dentalService;
 
     @QueryMapping
@@ -97,5 +105,20 @@ public class DentalResolver {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext()
                 .getAuthentication().getName();
         return dentalService.getMyFavoriteDentals(username);
+=======
+    private final DentalRepository dentalRepository;
+
+    @QueryMapping
+    public List<DentalEntity> dentals(
+            @Argument("name") String name,
+            @Argument("limit") Integer limit) {
+        int max = (limit != null && limit > 0 && limit <= 100) ? limit : 50;
+        if (name != null && !name.isBlank()) {
+            return dentalRepository.findByNameContainingIgnoreCaseOrderByNameAsc(
+                    name, org.springframework.data.domain.PageRequest.of(0, max));
+        }
+        return dentalRepository.findAllByOrderByNameAsc(
+                org.springframework.data.domain.PageRequest.of(0, max));
+>>>>>>> origin/feature/api-service
     }
 }

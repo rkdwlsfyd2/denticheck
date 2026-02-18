@@ -1,15 +1,21 @@
 package com.denticheck.api.domain.dental.repository;
 
 import com.denticheck.api.domain.dental.entity.DentalEntity;
+<<<<<<< HEAD
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+=======
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+>>>>>>> origin/feature/api-service
 
 import java.util.List;
 import java.util.UUID;
 
 public interface DentalRepository extends JpaRepository<DentalEntity, UUID> {
 
+<<<<<<< HEAD
         // Haversine formula for lat/lng columns in dentals table
         String HAVERSINE_FORMULA = "(6371 * acos(cos(radians(:latitude)) * cos(radians(d.lat)) *"
                         + " cos(radians(d.lng) - radians(:longitude)) + sin(radians(:latitude)) * sin(radians(d.lat))))";
@@ -28,4 +34,11 @@ public interface DentalRepository extends JpaRepository<DentalEntity, UUID> {
                         @Param("minLng") double minLng,
                         @Param("maxLng") double maxLng,
                         org.springframework.data.domain.Pageable pageable);
+=======
+    List<DentalEntity> findByNameContainingIgnoreCaseOrderByNameAsc(String name, Pageable pageable);
+
+    List<DentalEntity> findAllByOrderByNameAsc(Pageable pageable);
+
+    long countByIdIn(Iterable<UUID> ids);
+>>>>>>> origin/feature/api-service
 }

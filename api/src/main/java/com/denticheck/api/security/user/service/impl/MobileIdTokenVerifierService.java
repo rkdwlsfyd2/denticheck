@@ -7,7 +7,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class MobileIdTokenVerifierService {
 
     private final JwtDecoder idTokenDecoder;
@@ -24,6 +27,7 @@ public class MobileIdTokenVerifierService {
     }
 
     public Jwt verify(String idToken) {
+        log.debug("verify() 실행");
         Jwt jwt = idTokenDecoder.decode(idToken); // 서명/iss/exp 등 기본 검증
 
         // aud 검증 (RN Android/iOS client id가 다르면 둘 다 허용 리스트로)

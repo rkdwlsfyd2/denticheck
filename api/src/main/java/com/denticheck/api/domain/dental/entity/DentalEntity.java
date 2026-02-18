@@ -1,5 +1,6 @@
 package com.denticheck.api.domain.dental.entity;
 
+<<<<<<< HEAD
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -13,6 +14,12 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.ZonedDateTime;
+=======
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+>>>>>>> origin/feature/api-service
 import java.util.UUID;
 
 @Getter
@@ -27,6 +34,7 @@ public class DentalEntity {
     @Column(name = "id", nullable = false)
     private UUID id;
 
+<<<<<<< HEAD
     @Column(name = "source", length = 50, nullable = false)
     private String source;
 
@@ -34,12 +42,25 @@ public class DentalEntity {
     private String sourceKey;
 
     @Column(name = "name", length = 200, nullable = false)
+=======
+    @Column(name = "source", nullable = false, length = 50)
+    private String source;
+
+    @Column(name = "source_key", nullable = false, unique = true, length = 100)
+    private String sourceKey;
+
+    @Column(name = "name", nullable = false, length = 200)
+>>>>>>> origin/feature/api-service
     private String name;
 
     @Column(name = "phone", length = 30)
     private String phone;
 
+<<<<<<< HEAD
     @Column(name = "address", columnDefinition = "TEXT", nullable = false)
+=======
+    @Column(name = "address", nullable = false, columnDefinition = "TEXT")
+>>>>>>> origin/feature/api-service
     private String address;
 
     @Column(name = "sido_code", length = 20)
@@ -49,6 +70,7 @@ public class DentalEntity {
     private String sigunguCode;
 
     @Column(name = "lat", precision = 10, scale = 7)
+<<<<<<< HEAD
     private java.math.BigDecimal lat;
 
     @Column(name = "lng", precision = 10, scale = 7)
@@ -95,4 +117,13 @@ public class DentalEntity {
         this.ratingCount = newCount;
         this.ratingAvg = total.divide(java.math.BigDecimal.valueOf(newCount), 2, java.math.RoundingMode.HALF_UP);
     }
+=======
+    private BigDecimal lat;
+
+    @Column(name = "lng", precision = 10, scale = 7)
+    private BigDecimal lng;
+
+    @Column(name = "business_status", length = 30)
+    private String businessStatus;
+>>>>>>> origin/feature/api-service
 }

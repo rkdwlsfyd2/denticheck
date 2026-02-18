@@ -1,6 +1,8 @@
 package com.denticheck.api.security.jwt.filter;
 
 import com.denticheck.api.common.util.JWTUtil;
+import com.denticheck.api.domain.user.entity.UserRoleType;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +10,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,6 +28,10 @@ import java.util.Collections;
 public class JWTFilter extends OncePerRequestFilter {
 
     private final JWTUtil jwtUtil;
+    private final RoleHierarchy roleHierarchy;
+
+    @Value("${jwt.enable-development-tokens:false}")
+    private boolean enableDevelopmentTokens;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -58,15 +66,33 @@ public class JWTFilter extends OncePerRequestFilter {
         // 토큰 파싱
         String accessToken = authorization.substring("Bearer ".length());
 
-        // TODO: 임시 토큰 처리 (테스트용)
-        if ("temp_access_token_for_test".equals(accessToken)) {
-            Authentication auth = new UsernamePasswordAuthenticationToken(
-                    "TestUser",
-                    null,
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            filterChain.doFilter(request, response);
-            return;
+        // ✅ [관리자 기능] 테스트를 위한 개발용 임시 토큰 처리 (설정에서 활성화된 경우만)
+        if (enableDevelopmentTokens) {
+            if ("devAccessToken-admin".equals(accessToken)) {
+                log.info("Development Admin Token detected. Granting ROLE_ADMIN.");
+                Authentication auth = new UsernamePasswordAuthenticationToken(
+                        "admin_test",
+                        null,
+                        roleHierarchy.getReachableGrantedAuthorities(
+                                Collections.singletonList(
+                                        new SimpleGrantedAuthority("ROLE_" + UserRoleType.ADMIN.name()))));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            if ("devAccessToken-user".equals(accessToken)) {
+                log.info("Development User Token detected. Granting ROLE_USER.");
+                Authentication auth = new UsernamePasswordAuthenticationToken(
+                        "user1",
+                        null,
+                        roleHierarchy.getReachableGrantedAuthorities(
+                                Collections.singletonList(
+                                        new SimpleGrantedAuthority("ROLE_" + UserRoleType.USER.name()))));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+                filterChain.doFilter(request, response);
+                return;
+            }
         }
 
         if (jwtUtil.isValid(accessToken, true)) {
@@ -76,7 +102,8 @@ public class JWTFilter extends OncePerRequestFilter {
             Authentication auth = new UsernamePasswordAuthenticationToken(
                     username,
                     null,
-                    Collections.singletonList(new SimpleGrantedAuthority(role)));
+                    roleHierarchy.getReachableGrantedAuthorities(
+                            Collections.singletonList(new SimpleGrantedAuthority(role))));
             SecurityContextHolder.getContext().setAuthentication(auth);
 
             filterChain.doFilter(request, response);
