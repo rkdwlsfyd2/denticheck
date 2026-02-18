@@ -15,6 +15,8 @@ import com.denticheck.api.infrastructure.external.ai.dto.AiChatAskRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.denticheck.api.domain.chatbot.entity.ChatRole;
+import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.common.exception.user.UserErrorCode;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,8 +38,9 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatSessionEntity startSession(UUID userId, String channel) {
+        log.debug("startSession() 실행");
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         return getOrCreateActiveSession(user, channel);
     }
 
@@ -56,39 +59,39 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(readOnly = true)
     public List<AiChatMessageEntity> getChatHistory(UUID sessionId) {
+        log.debug("getChatHistory() 실행");
         return aiChatMessageRepository.findAllBySessionIdOrderByCreatedAtAsc(sessionId);
     }
 
     @Override
     @Transactional
     public ChatAppResponse processMessage(ChatAppRequest request, UUID userId, String channel) {
+        log.debug("processMessage() 실행");
         String content = request.getContent();
         ChatMessageType messageType = request.getMessageType() != null ? request.getMessageType()
                 : ChatMessageType.TEXT;
         Map<String, Object> payload = request.getPayload();
 
-        log.info("사용자로부터 채팅 메시지를 수신했습니다. 사용자: {}, 채널: {}, 내용: {}", userId, channel, content);
-
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
         ChatSessionEntity session = getOrCreateActiveSession(user, channel);
 
-        // 1. Save User Message
+        // 1. 사용자 메시지 저장
         AiChatMessageEntity userMessage = AiChatMessageEntity.builder()
                 .session(session)
                 .role(ChatRole.USER)
                 .content(content)
                 .messageType(messageType)
                 .payload(payload)
-                .language("ko") // Default to Korean for now
+                .language("ko") // TODO: 나중에 App에서 받아야함.
                 .build();
         aiChatMessageRepository.save(userMessage);
 
-        // Update Session Metadata
+        // 세션 메타데이터 업데이트
         session.touchLastMessage(preview(content));
 
-        // 2. Call AI Server
+        // 2. AI 서버 호출
         String aiContent;
         try {
             String rawResponse = aiClient.askChat(AiChatAskRequest.builder()
@@ -111,7 +114,7 @@ public class ChatServiceImpl implements ChatService {
         ChatMessageType aiMessageType = ChatMessageType.TEXT;
         Map<String, Object> aiPayload = null;
 
-        // 3. Save Assistant Message
+        // 3. 챗봇 응답 메시지 저장
         AiChatMessageEntity aiMessage = AiChatMessageEntity.builder()
                 .session(session)
                 .role(ChatRole.ASSISTANT)
@@ -123,11 +126,6 @@ public class ChatServiceImpl implements ChatService {
         AiChatMessageEntity savedAiMessage = aiChatMessageRepository.save(aiMessage);
 
         session.touchLastMessage(preview(aiContent));
-
-        // 4. Push to SSE (Optional for simple HTTP request/response)
-        // ... (Keep existing if needed, or remove if moving to pure HTTP)
-
-        log.info("AI 응답 생성 완료: sessionId={}, 내용={}", session.getId(), savedAiMessage.getContent());
 
         return ChatAppResponse.builder()
                 .sessionId(session.getId())
@@ -142,6 +140,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public void endSession(UUID userId, String channel) {
+        log.debug("endSession() 실행");
         chatSessionRepository.findByUserIdAndChannelAndEndedAtIsNull(userId, channel)
                 .ifPresent(session -> {
                     log.info("채팅 세션을 종료합니다: {}", session.getId());

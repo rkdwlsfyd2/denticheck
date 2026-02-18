@@ -1,0 +1,93 @@
+<configuration>
+    <!-- Spring Boot clr 변환기 등록(필수) -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- ===== 패턴(너가 쓰던 YAML 패턴 유지) + 레벨별 색 ===== -->
+    <property name="PATTERN_TRACE"
+        value="%d{yyyy-MM-dd HH:mm:ss.SSS} %clr(%-5level){faint} ${PID:-} --- [%thread] %logger{36} : %msg%n%throwable"/>
+
+    <property name="PATTERN_DEBUG"
+        value="%d{yyyy-MM-dd HH:mm:ss.SSS} %clr(%-5level){cyan} ${PID:-} --- [%thread] %logger{36} : %msg%n%throwable"/>
+
+    <property name="PATTERN_INFO"
+        value="%d{yyyy-MM-dd HH:mm:ss.SSS} %clr(%-5level){green} ${PID:-} --- [%thread] %logger{36} : %msg%n%throwable"/>
+
+    <property name="PATTERN_WARN"
+        value="%d{yyyy-MM-dd HH:mm:ss.SSS} %clr(%-5level){yellow} ${PID:-} --- [%thread] %logger{36} : %msg%n%throwable"/>
+
+    <property name="PATTERN_ERROR"
+        value="%d{yyyy-MM-dd HH:mm:ss.SSS} %clr(%-5level){red,bold} ${PID:-} --- [%thread] %logger{36} : %msg%n%throwable"/>
+
+    <!-- ===== Appenders: 레벨별로 분리해서 색을 강제 ===== -->
+    <appender name="CONSOLE_TRACE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+        <level>TRACE</level>
+        <onMatch>ACCEPT</onMatch>
+        <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+        <pattern>${PATTERN_TRACE}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE_DEBUG" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+        <level>DEBUG</level>
+        <onMatch>ACCEPT</onMatch>
+        <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+        <pattern>${PATTERN_DEBUG}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE_INFO" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+        <level>INFO</level>
+        <onMatch>ACCEPT</onMatch>
+        <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+        <pattern>${PATTERN_INFO}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE_WARN" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+        <level>WARN</level>
+        <onMatch>ACCEPT</onMatch>
+        <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+        <pattern>${PATTERN_WARN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE_ERROR" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+        <level>ERROR</level>
+        <onMatch>ACCEPT</onMatch>
+        <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+        <pattern>${PATTERN_ERROR}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ===== root: 기본은 INFO 이상만 ===== -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE_INFO"/>
+        <appender-ref ref="CONSOLE_WARN"/>
+        <appender-ref ref="CONSOLE_ERROR"/>
+    </root>
+
+    <!-- ===== com.denticheck.api: TRACE/DEBUG까지 보고 싶으면 여기에서 조절 ===== -->
+    <logger name="com.denticheck.api" level="DEBUG" additivity="false">
+        <!-- TRACE까지 보고 싶으면 위 logger에 level="TRACE"로 바꾸면 됨 -->
+        <!-- <appender-ref ref="CONSOLE_TRACE"/> -->
+        <appender-ref ref="CONSOLE_DEBUG"/>
+        <appender-ref ref="CONSOLE_INFO"/>
+        <appender-ref ref="CONSOLE_WARN"/>
+        <appender-ref ref="CONSOLE_ERROR"/>
+    </logger>
+</configuration>

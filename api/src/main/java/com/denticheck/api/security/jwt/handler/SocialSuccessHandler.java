@@ -2,58 +2,83 @@ package com.denticheck.api.security.jwt.handler;
 
 import com.denticheck.api.common.util.JWTUtil;
 import com.denticheck.api.security.jwt.service.impl.JwtServiceImpl;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 
+@Slf4j
 @Component
 @Qualifier("SocialSuccessHandler")
 @RequiredArgsConstructor
 public class SocialSuccessHandler implements AuthenticationSuccessHandler {
 
-    private final JwtServiceImpl jwtServiceImpl;
-    private final JWTUtil jwtUtil;
+        private final JwtServiceImpl jwtServiceImpl;
+        private final JWTUtil jwtUtil;
 
-    @Value("${admin.web.login-success-redirect}")
-    private String adminLoginSuccessRedirect;
+        @Value("${admin.web.login-success-redirect}")
+        private String adminLoginSuccessRedirect;
 
-    @Value("${admin.web.refresh-cookie-max-age-seconds}")
-    private int refreshCookieMaxAgeSeconds;
+        @Value("${admin.web.refresh-cookie-max-age}")
+        private Duration refreshCookieMaxAge;
 
-    @Value("${admin.web.refresh-cookie-secure}")
-    private boolean refreshCookieSecure;
+        @Value("${admin.web.refresh-cookie-secure}")
+        private boolean refreshCookieSecure;
 
-    @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-            Authentication authentication) throws IOException {
+        @Override
+        public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+                        Authentication authentication) throws IOException {
 
-        // username, role
-        String username = authentication.getName();
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
+                log.info("Social Login Success! username: {}, refreshCookieSecure config: {}", authentication.getName(),
+                                refreshCookieSecure);
 
-        // JWT(Refresh) 발급
-        String refreshToken = jwtUtil.createRefreshJWT(username, role);
-        // 발급한 Refresh DB 테이블 저장 (Refresh whitelist)
-        jwtServiceImpl.addRefresh(username, refreshToken);
+                // username, authorities
+                String username = authentication.getName();
+                var authorities = authentication.getAuthorities();
 
-        // 응답
-        Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(refreshCookieSecure);
-        refreshCookie.setPath("/");
-        refreshCookie.setMaxAge(refreshCookieMaxAgeSeconds);
+                log.info("Checking authorities for user {}: {}", username, authorities);
 
-        response.addCookie(refreshCookie);
+                // 관리자 권한 확인 (ROLE_ADMIN 권한이 하나라도 있는지 확인)
+                boolean isAdmin = authorities.stream()
+                                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
 
-        response.sendRedirect(adminLoginSuccessRedirect);
-    }
+                if (!isAdmin) {
+                        log.warn("Access Denied for non-admin user: {} - Authorities: {}", username, authorities);
+                        // 프론트엔드 로그인 페이지로 에러와 함께 리디렉션
+                        String loginPageUrl = adminLoginSuccessRedirect.replace("/auth/callback", "/login");
+                        log.info("Redirecting non-admin to: {}", loginPageUrl + "?error=forbidden");
+                        response.sendRedirect(loginPageUrl + "?error=forbidden");
+                        return;
+                }
 
+                log.info("Admin Access Granted for user: {}", username);
+
+                // JWT(Refresh) 발급
+                String role = "ROLE_ADMIN"; // 이미 위에서 확인됨
+                String refreshToken = jwtUtil.createRefreshJWT(username, role);
+                // 발급한 Refresh DB 테이블 저장 (Refresh whitelist)
+                jwtServiceImpl.addRefresh(username, refreshToken);
+
+                // 응답 쿠키 생성 (ResponseCookie 사용으로 유연하게 설정)
+                ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                                .httpOnly(true)
+                                .secure(refreshCookieSecure)
+                                .path("/")
+                                .maxAge(refreshCookieMaxAge.getSeconds())
+                                .sameSite(refreshCookieSecure ? "None" : "Lax") // Secure가 true일 때만 None 가능
+                                .build();
+
+                response.addHeader("Set-Cookie", cookie.toString());
+
+                response.sendRedirect(adminLoginSuccessRedirect);
+        }
 }

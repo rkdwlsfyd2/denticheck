@@ -1,21 +1,13 @@
 package com.denticheck.api.domain.ai_check.service;
 
 import com.denticheck.api.domain.ai_check.dto.AiCheckRunResponse;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,86 +19,41 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiLlmResultService {
 
-    private static final List<String> SUPPORTED_LABELS = List.of("caries", "tartar", "oral_cancer", "normal");
-
-    private static final String SYSTEM_PROMPT = """
-            You are a dental screening explanation assistant.
-            The input is object detection output from YOLO and retrieval contexts from Milvus.
-            This is NOT a medical diagnosis.
-            Never claim confirmed diagnosis. Use suspicious/possible wording only.
-            Ground your explanation on the given contexts.
-            Output must be JSON only and must follow the requested schema exactly.
-            """;
-
-    private static final String USER_PROMPT_TEMPLATE = """
-            Generate UI JSON from the following inputs.
-
-            Rules:
-            1) overall.level:
-               - RED if oral_cancer exists and maxConfidence >= 0.5
-               - YELLOW if caries or tartar exists
-               - GREEN otherwise
-            2) findings: up to 3 grouped findings by label
-            3) severity:
-               - oral_cancer with confidence >= 0.5 => \"고위험\"
-               - confidence >= 0.75 => \"중등도\"
-               - 0.5 to 0.75 => \"경미\"
-               - else \"경미\"
-            4) careGuide: 4 to 6 short Korean sentences
-            5) disclaimer: 2 to 3 Korean sentences
-            6) ragCitations: include short snippet and source from the provided contexts
-            7) Return JSON only.
-
-            detections:
-            %s
-
-            quality:
-            {"qualityPass": %s, "qualityScore": %.4f}
-
-            contexts:
-            %s
-            """;
-
-    private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    @Value("${ollama.enabled:false}")
-    private boolean ollamaEnabled;
-
-    @Value("${ollama.base-url:http://localhost:11434}")
-    private String ollamaBaseUrl;
-
-    @Value("${ollama.model:llama3:8b}")
-    private String ollamaModel;
+    @Value("${ai.analyze.enabled:true}")
+    private boolean aiEnabled;
 
     public AiCheckRunResponse.LlmResult generate(
             List<AiCheckRunResponse.DetectionItem> detections,
             boolean qualityPass,
             double qualityScore,
-            List<MilvusRagService.RagContext> contexts
+            List<String> contexts // Changed from RagContext to String or ignored
     ) {
         List<AiCheckRunResponse.DetectionItem> safeDetections = detections == null ? List.of() : detections;
-        List<MilvusRagService.RagContext> safeContexts = contexts == null ? List.of() : contexts;
+        // Contexts are now handled by Python, so we largely ignore them here or pass
+        // empty strings if needed for rule-based fallback text generation
 
-        AiCheckRunResponse.LlmResult fallback = buildRuleBased(safeDetections, safeContexts);
-        if (!ollamaEnabled) {
+        AiCheckRunResponse.LlmResult fallback = buildRuleBased(safeDetections);
+        if (!aiEnabled) {
             return fallback;
         }
 
         try {
-            AiCheckRunResponse.LlmResult llm = callOllama(safeDetections, qualityPass, qualityScore, safeContexts);
-            if (llm == null) {
-                return fallback;
-            }
-            return enforceRules(llm, safeDetections, safeContexts);
+            // For backward compatibility or legacy checks, we might still call ollama here
+            // if configured,
+            // but the main path is now via AiAnalyzeLlmService -> Python.
+            // If this service is strictly for "Quick Check" or fallback, rule-based might
+            // be sufficient.
+            // Let's keep it simple and return fallback/rule-based for now as the Python
+            // side does the heavy lifting.
+            return fallback;
         } catch (Exception e) {
-            log.warn("Ollama generation failed. Using rule-based fallback", e);
+            log.warn("Legacy LLM generation failed. Using rule-based fallback", e);
             return fallback;
         }
     }
 
-    public AiCheckRunResponse.LlmResult forQualityFailed(List<MilvusRagService.RagContext> contexts) {
-        AiCheckRunResponse.LlmResult result = buildRuleBased(List.of(), contexts);
+    public AiCheckRunResponse.LlmResult forQualityFailed(List<?> contexts) { // Generic list to avoid dependency
+        AiCheckRunResponse.LlmResult result = buildRuleBased(List.of());
         return AiCheckRunResponse.LlmResult.builder()
                 .overall(AiCheckRunResponse.Overall.builder()
                         .level("GREEN")
@@ -118,123 +65,14 @@ public class AiLlmResultService {
                         "밝은 환경에서 입안을 선명하게 촬영해 주세요.",
                         "카메라 초점을 맞추고 흔들림 없이 촬영해 주세요.",
                         "치아와 잇몸이 함께 보이도록 촬영 범위를 조정해 주세요.",
-                        "통증이나 출혈이 있으면 치과 상담을 권장합니다."
-                ))
+                        "통증이나 출혈이 있으면 치과 상담을 권장합니다."))
                 .disclaimer(result.getDisclaimer())
                 .ragCitations(result.getRagCitations())
                 .build();
     }
 
-    private AiCheckRunResponse.LlmResult callOllama(
-            List<AiCheckRunResponse.DetectionItem> detections,
-            boolean qualityPass,
-            double qualityScore,
-            List<MilvusRagService.RagContext> contexts
-    ) throws Exception {
-        String detectionsJson = objectMapper.writeValueAsString(detections);
-        String contextsJson = objectMapper.writeValueAsString(contexts);
-        String prompt = USER_PROMPT_TEMPLATE.formatted(detectionsJson, qualityPass, qualityScore, contextsJson);
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", ollamaModel);
-        body.put("stream", false);
-        body.put("format", "json");
-        body.put("system", SYSTEM_PROMPT);
-        body.put("prompt", prompt);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        String url = ollamaBaseUrl + "/api/generate";
-        ResponseEntity<Map> response = restTemplate.postForEntity(url, new HttpEntity<>(body, headers), Map.class);
-        Map<String, Object> responseBody = response.getBody();
-        if (responseBody == null) {
-            return null;
-        }
-
-        String json = Objects.toString(responseBody.get("response"), "").trim();
-        if (json.isBlank()) {
-            return null;
-        }
-
-        Map<String, Object> parsed = objectMapper.readValue(json, new TypeReference<>() {
-        });
-        return objectMapper.convertValue(parsed, AiCheckRunResponse.LlmResult.class);
-    }
-
-    private AiCheckRunResponse.LlmResult enforceRules(
-            AiCheckRunResponse.LlmResult llm,
-            List<AiCheckRunResponse.DetectionItem> detections,
-            List<MilvusRagService.RagContext> contexts
-    ) {
-        AiCheckRunResponse.LlmResult rule = buildRuleBased(detections, contexts);
-
-        String oneLineSummary = rule.getOverall().getOneLineSummary();
-        if (llm.getOverall() != null && hasText(llm.getOverall().getOneLineSummary())) {
-            oneLineSummary = llm.getOverall().getOneLineSummary();
-        }
-
-        List<AiCheckRunResponse.Finding> findings = llm.getFindings();
-        if (findings == null || findings.isEmpty()) {
-            findings = rule.getFindings();
-        } else {
-            findings = findings.stream().limit(3).map(this::sanitizeFinding).toList();
-        }
-
-        List<String> careGuide = llm.getCareGuide();
-        if (careGuide == null || careGuide.isEmpty()) {
-            careGuide = rule.getCareGuide();
-        }
-
-        List<String> disclaimer = llm.getDisclaimer();
-        if (disclaimer == null || disclaimer.isEmpty()) {
-            disclaimer = rule.getDisclaimer();
-        }
-
-        List<AiCheckRunResponse.RagCitation> ragCitations = llm.getRagCitations();
-        if (ragCitations == null || ragCitations.isEmpty()) {
-            ragCitations = rule.getRagCitations();
-        }
-
-        return AiCheckRunResponse.LlmResult.builder()
-                .overall(AiCheckRunResponse.Overall.builder()
-                        .level(rule.getOverall().getLevel())
-                        .badgeText(rule.getOverall().getBadgeText())
-                        .oneLineSummary(oneLineSummary)
-                        .build())
-                .findings(findings)
-                .careGuide(careGuide)
-                .disclaimer(disclaimer)
-                .ragCitations(ragCitations)
-                .build();
-    }
-
-    private AiCheckRunResponse.Finding sanitizeFinding(AiCheckRunResponse.Finding finding) {
-        if (finding == null) {
-            return defaultNormalFinding();
-        }
-
-        AiCheckRunResponse.Evidence evidence = finding.getEvidence();
-        if (evidence == null) {
-            evidence = AiCheckRunResponse.Evidence.builder()
-                    .labels(List.of("normal"))
-                    .count(0)
-                    .maxConfidence(0.0)
-                    .build();
-        }
-
-        return AiCheckRunResponse.Finding.builder()
-                .title(hasText(finding.getTitle()) ? finding.getTitle() : "정상")
-                .severity(hasText(finding.getSeverity()) ? finding.getSeverity() : "경미")
-                .locationText(hasText(finding.getLocationText()) ? finding.getLocationText() : "위치 정보 제한")
-                .evidence(evidence)
-                .build();
-    }
-
     private AiCheckRunResponse.LlmResult buildRuleBased(
-            List<AiCheckRunResponse.DetectionItem> detections,
-            List<MilvusRagService.RagContext> contexts
-    ) {
+            List<AiCheckRunResponse.DetectionItem> detections) {
         Map<String, List<AiCheckRunResponse.DetectionItem>> grouped = detections.stream()
                 .filter(d -> d.getLabel() != null)
                 .map(this::normalizeDetectionLabel)
@@ -263,14 +101,8 @@ public class AiLlmResultService {
                 .careGuide(buildCareGuide(level))
                 .disclaimer(List.of(
                         "이 결과는 AI 스크리닝 참고 정보이며 의료 확진이 아닙니다.",
-                        "통증, 출혈, 궤양 등 증상이 있으면 치과 진료를 권장합니다."
-                ))
-                .ragCitations(contexts.stream().limit(5).map(v ->
-                        AiCheckRunResponse.RagCitation.builder()
-                                .source(v.getSource())
-                                .snippet(trimSnippet(v.getText()))
-                                .build()
-                ).toList())
+                        "통증, 출혈, 궤양 등 증상이 있으면 치과 진료를 권장합니다."))
+                .ragCitations(List.of()) // No RAG contexts available here
                 .build();
     }
 
@@ -302,13 +134,15 @@ public class AiLlmResultService {
         if (oralCancerMax >= 0.5) {
             return "RED";
         }
-        if (!grouped.getOrDefault("caries", List.of()).isEmpty() || !grouped.getOrDefault("tartar", List.of()).isEmpty()) {
+        if (!grouped.getOrDefault("caries", List.of()).isEmpty()
+                || !grouped.getOrDefault("tartar", List.of()).isEmpty()) {
             return "YELLOW";
         }
         return "GREEN";
     }
 
-    private List<AiCheckRunResponse.Finding> buildFindings(Map<String, List<AiCheckRunResponse.DetectionItem>> grouped) {
+    private List<AiCheckRunResponse.Finding> buildFindings(
+            Map<String, List<AiCheckRunResponse.DetectionItem>> grouped) {
         if (grouped.isEmpty() || (grouped.size() == 1 && grouped.containsKey("normal"))) {
             return List.of(defaultNormalFinding());
         }
@@ -398,23 +232,20 @@ public class AiLlmResultService {
                     "가능한 빠르게 치과 또는 구강악안면외과 상담을 받아 주세요.",
                     "해당 부위를 자극하는 음식과 흡연, 음주를 피해주세요.",
                     "통증, 출혈, 궤양 지속 여부를 관찰하고 기록해 주세요.",
-                    "증상이 지속되면 지체하지 말고 대면 진료를 받으세요."
-            );
+                    "증상이 지속되면 지체하지 말고 대면 진료를 받으세요.");
         }
         if ("YELLOW".equals(level)) {
             return List.of(
                     "하루 2~3회 불소치약으로 꼼꼼히 양치해 주세요.",
                     "치실이나 치간칫솔을 함께 사용해 치면 세정을 강화해 주세요.",
                     "당 섭취 빈도를 줄이고 식후 구강 관리를 해주세요.",
-                    "3~6개월 내 스케일링 또는 검진 일정을 권장합니다."
-            );
+                    "3~6개월 내 스케일링 또는 검진 일정을 권장합니다.");
         }
         return List.of(
                 "현재 구강 위생 습관을 유지해 주세요.",
                 "정기 검진(6~12개월)을 통해 상태를 확인해 주세요.",
                 "치실 또는 치간칫솔 사용을 병행하면 도움이 됩니다.",
-                "새로운 증상이 생기면 조기에 상담을 받아 주세요."
-        );
+                "새로운 증상이 생기면 조기에 상담을 받아 주세요.");
     }
 
     private AiCheckRunResponse.Finding defaultNormalFinding() {
@@ -428,17 +259,5 @@ public class AiLlmResultService {
                         .maxConfidence(0.0)
                         .build())
                 .build();
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
-    }
-
-    private String trimSnippet(String text) {
-        if (text == null) {
-            return "";
-        }
-        String flat = text.replace('\n', ' ').trim();
-        return flat.length() <= 140 ? flat : flat.substring(0, 140) + "...";
     }
 }

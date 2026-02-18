@@ -12,19 +12,22 @@ import com.denticheck.api.domain.user.repository.UserRepository;
 import com.denticheck.api.domain.user.service.UserService;
 import com.denticheck.api.security.jwt.service.impl.JwtServiceImpl;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.common.exception.user.UserErrorCode;
 
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -45,7 +48,7 @@ public class UserServiceImpl implements UserService {
 
         // 조회
         UserEntity entity = userRepository.findByUsername(dto.getUsername())
-                .orElseThrow(() -> new UsernameNotFoundException(dto.getUsername()));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
         // 회원 정보 수정
         entity.updateUser(dto);
@@ -82,7 +85,7 @@ public class UserServiceImpl implements UserService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         UserEntity entity = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("해당 유저를 찾을 수 없습니다: " + username));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
         return UserResponseDTO.builder()
                 .nickname(entity.getNickname())
@@ -113,7 +116,7 @@ public class UserServiceImpl implements UserService {
 
         return userRepository.findWithRoleByUsername(username)
                 .map(entity -> {
-                    // 기존 유저 정보 업데이트
+                    // [Step 1-3] 기존 유저가 있으면 정보만 업데이트하고 성공 처리
                     UserRequestDTO dto = new UserRequestDTO();
                     dto.setEmail(email);
                     dto.setNickname(nickname);
@@ -122,17 +125,16 @@ public class UserServiceImpl implements UserService {
                     return entity;
                 })
                 .orElseGet(() -> {
-                    // 신규 유저 생성
-                    String roleName;
-                    if (email != null && adminEmails != null && adminEmails.contains(email)) {
-                        roleName = UserRoleType.ADMIN.name();
-                    } else {
-                        roleName = UserRoleType.USER.name();
-                    }
+                    // [Step 1-4] 없으면 신규 유저 생성
+                    // [Step 1-4-1] 이메일이 admin-emails에 포함되어 있는지 확인하여 권한 부여
+                    String roleName = (email != null && adminEmails != null && adminEmails.contains(email))
+                            ? UserRoleType.ADMIN.name()
+                            : UserRoleType.USER.name();
 
-                    String finalRoleName = roleName;
-                    RoleEntity role = roleRepository.findByName(finalRoleName)
-                            .orElseThrow(() -> new RuntimeException("Role not found: " + finalRoleName));
+                    log.info("Creating new user {} with role: {} (Email: {})", username, roleName, email);
+
+                    RoleEntity role = roleRepository.findByName(roleName)
+                            .orElseThrow(() -> new UserException(UserErrorCode.ROLE_NOT_FOUND));
 
                     UserEntity newUser = UserEntity.builder()
                             .username(username)

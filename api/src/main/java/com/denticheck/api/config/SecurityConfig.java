@@ -1,16 +1,13 @@
 package com.denticheck.api.config;
 
-import com.denticheck.api.common.util.JWTUtil;
 import com.denticheck.api.domain.user.entity.UserRoleType;
 import com.denticheck.api.security.jwt.filter.JWTFilter;
-import com.denticheck.api.security.jwt.handler.RefreshTokenLogoutHandler;
-import com.denticheck.api.security.jwt.service.impl.JwtServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
+
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -29,19 +26,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     private final AuthenticationSuccessHandler socialSuccessHandler;
-    private final JWTFilter jwtFilter;
 
     public SecurityConfig(
-            @Qualifier("SocialSuccessHandler") AuthenticationSuccessHandler socialSuccessHandler,
-            JWTFilter jwtFilter) {
+            @Qualifier("SocialSuccessHandler") AuthenticationSuccessHandler socialSuccessHandler) {
         this.socialSuccessHandler = socialSuccessHandler;
-        this.jwtFilter = jwtFilter;
     }
 
     @Bean
@@ -71,31 +68,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Order(1)
-    public SecurityFilterChain aiCheckSecurityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .securityMatcher("/api/ai-check", "/api/ai-check/**")
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-        return http.build();
-    }
-
-    @Bean
-    @Order(2)
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            RefreshTokenLogoutHandler refreshTokenLogoutHandler) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JWTFilter jwtFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .logout(logout -> logout.addLogoutHandler(refreshTokenLogoutHandler))
+                .logout(AbstractHttpConfigurer::disable)
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(socialSuccessHandler)
                         .redirectionEndpoint(endpoint -> endpoint.baseUri("/oauth2/callback/*")))
@@ -105,7 +85,7 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/oauth2/callback/**").permitAll()
                         .requestMatchers("/auth/mobile/google").permitAll()
                         .requestMatchers("/api/ai-check", "/api/ai-check/**").permitAll()
-                        .requestMatchers("/jwt/exchange", "/jwt/refresh").permitAll()
+                        .requestMatchers("/jwt/exchange", "/jwt/refresh", "/jwt/logout", "/jwt/dev-login").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll() // REST 문서 기본 경로(springdoc)
                         .requestMatchers("/docs/api-docs/**", "/docs/swagger-ui/**").permitAll() // REST 문서 (springdoc)
                         .requestMatchers("/docs/graphql", "/docs/graphql/", "/docs/graphql/**").permitAll() // GraphQL 문서 (Magidoc)
@@ -114,10 +94,16 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").hasRole(UserRoleType.ADMIN.name())
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
-                        .accessDeniedHandler((request, response, authException) ->
-                                response.sendError(HttpServletResponse.SC_FORBIDDEN)))
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            log.warn("Unauthorized request: {} - Path: {}", authException.getMessage(),
+                                    request.getRequestURI());
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                        })
+                        .accessDeniedHandler((request, response, authException) -> {
+                            log.error("Access Denied: {} - Path: {}", authException.getMessage(),
+                                    request.getRequestURI(), authException);
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                        }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -126,11 +112,6 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public RefreshTokenLogoutHandler refreshTokenLogoutHandler(JwtServiceImpl jwtServiceImpl, JWTUtil jwtUtil) {
-        return new RefreshTokenLogoutHandler(jwtServiceImpl, jwtUtil);
     }
 
     @Bean

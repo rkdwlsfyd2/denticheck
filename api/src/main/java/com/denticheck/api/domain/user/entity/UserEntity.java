@@ -65,6 +65,14 @@ public class UserEntity extends com.denticheck.api.common.entity.BaseTimeEntity 
         this.profileImage = dto.getProfileImage();
     }
 
+    public void updateStatus(UserStatusType status) {
+        this.userStatusType = status;
+    }
+
+    public void updateRole(RoleEntity role) {
+        this.role = role;
+    }
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private java.util.List<com.denticheck.api.domain.hospital.entity.UserHospitalEntity> favorites = new java.util.ArrayList<>();
