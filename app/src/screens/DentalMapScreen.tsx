@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import { View, Text, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { useQuery } from '@apollo/client/react';
-import { SEARCH_HOSPITALS } from '../graphql/queries';
+import { SEARCH_DENTALS } from '../graphql/queries';
 import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -12,9 +12,9 @@ import { useColorTheme } from '../shared/providers/ColorThemeProvider';
 
 const { width, height } = Dimensions.get('window');
 
-// Mock Data (Same as HospitalsScreen for consistency)
+// Mock Data (Same as DentalSearchScreen for consistency)
 
-interface Hospital {
+interface Dental {
     id: string;
     name: string;
     latitude: number;
@@ -22,9 +22,9 @@ interface Hospital {
     address?: string;
 }
 
-interface SearchHospitalsData {
-    searchHospitals: {
-        content: Hospital[];
+interface SearchDentalsData {
+    searchDentals: {
+        content: Dental[];
         pageInfo: {
             currentPage: number;
             totalPages: number;
@@ -33,7 +33,7 @@ interface SearchHospitalsData {
     };
 }
 
-interface SearchHospitalsVars {
+interface SearchDentalsVars {
     latitude: number;
     longitude: number;
     radius: number;
@@ -42,12 +42,12 @@ interface SearchHospitalsVars {
 }
 
 
-export default function HospitalMapScreen() {
+export default function DentalMapScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { theme } = useColorTheme();
-    const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
+    const [selectedDentalId, setSelectedDentalId] = useState<string | null>(null);
 
-    // Default location: Seoul Station (matching HospitalsScreen)
+    // Default location: Seoul Station (matching DentalSearchScreen)
     const [region, setRegion] = useState({
         latitude: 37.5547,
         longitude: 126.9707,
@@ -60,7 +60,7 @@ export default function HospitalMapScreen() {
     // We increase this slightly and ensure a minimum of 5km
     const calculatedRadius = Math.max((region.latitudeDelta * 111), 5.0);
 
-    const { data, loading, error, refetch } = useQuery<SearchHospitalsData, SearchHospitalsVars>(SEARCH_HOSPITALS, {
+    const { data, loading, error, refetch } = useQuery<SearchDentalsData, SearchDentalsVars>(SEARCH_DENTALS, {
         variables: {
             latitude: region.latitude,
             longitude: region.longitude,
@@ -71,10 +71,10 @@ export default function HospitalMapScreen() {
         fetchPolicy: 'cache-and-network',
     });
 
-    // Filter out hospitals with missing coordinates and map to local format
-    const hospitalsData = data?.searchHospitals?.content || [];
+    // Filter out dentals with missing coordinates and map to local format
+    const dentalsData = data?.searchDentals?.content || [];
 
-    const hospitals = hospitalsData
+    const dentals = dentalsData
         .filter((h: any) => h.latitude != null && h.longitude != null)
         .map((h: any) => ({
             id: h.id,
@@ -91,7 +91,7 @@ export default function HospitalMapScreen() {
             features: [], // Mock for now
         }));
 
-    const selectedHospital = hospitals.find(h => h.id === selectedHospitalId);
+    const selectedDental = dentals.find(h => h.id === selectedDentalId);
 
     const onRegionChangeComplete = (newRegion: any) => {
         // Only update if coordinates changed significantly to avoid infinite loops
@@ -127,7 +127,7 @@ export default function HospitalMapScreen() {
             )}
 
             {/* No Data Message */}
-            {!loading && !error && hospitals.length === 0 && (
+            {!loading && !error && dentals.length === 0 && (
                 <View className="absolute top-24 left-4 right-4 z-20 bg-blue-50 p-3 rounded-lg border border-blue-200">
                     <Text className="text-blue-600 text-xs font-medium text-center">이 주변에는 등록된 치과 정보가 없습니다.</Text>
                 </View>
@@ -150,31 +150,31 @@ export default function HospitalMapScreen() {
                 showsUserLocation={true}
                 showsMyLocationButton={true}
             >
-                {hospitals.map((hospital) => (
+                {dentals.map((dental) => (
                     <Marker
-                        key={hospital.id}
-                        coordinate={{ latitude: hospital.latitude, longitude: hospital.longitude }}
-                        title={hospital.name}
-                        description={hospital.address}
-                        onPress={() => setSelectedHospitalId(hospital.id)}
+                        key={dental.id}
+                        coordinate={{ latitude: dental.latitude, longitude: dental.longitude }}
+                        title={dental.name}
+                        description={dental.address}
+                        onPress={() => setSelectedDentalId(dental.id)}
                     />
                 ))}
             </MapView>
 
-            {/* Bottom Card for Selected Hospital */}
-            {selectedHospital && (
+            {/* Bottom Card for Selected Dental */}
+            {selectedDental && (
                 <View className="absolute bottom-10 left-4 right-4 bg-white p-5 rounded-2xl shadow-xl border border-slate-100 z-30">
                     <View className="flex-row justify-between items-start mb-2">
                         <View className="flex-1 mr-2">
                             <Text className="font-bold text-xl text-slate-900" numberOfLines={1}>
-                                {selectedHospital.name}
+                                {selectedDental.name}
                             </Text>
                             <Text className="text-slate-500 text-sm mt-1" numberOfLines={2}>
-                                {selectedHospital.address}
+                                {selectedDental.address}
                             </Text>
                         </View>
                         <TouchableOpacity
-                            onPress={() => setSelectedHospitalId(null)}
+                            onPress={() => setSelectedDentalId(null)}
                             className="bg-slate-100 p-2 rounded-full"
                         >
                             <Text className="text-slate-400 font-bold">✕</Text>
@@ -184,7 +184,7 @@ export default function HospitalMapScreen() {
                     <TouchableOpacity
                         className="mt-4 bg-blue-600 py-3.5 rounded-xl items-center shadow-sm"
                         onPress={() => {
-                            navigation.navigate('HospitalDetail', { hospital: selectedHospital });
+                            navigation.navigate('DentalDetail', { dental: selectedDental });
                         }}
                     >
                         <Text className="text-white font-bold text-base">상세보기</Text>

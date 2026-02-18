@@ -14,7 +14,7 @@ export default function ReviewListScreen() {
 
     // Safety check for parameters
     const dentalId = route.params?.dentalId;
-    const hospitalName = route.params?.hospitalName || '병원';
+    const dentalName = route.params?.dentalName || '병원';
 
     const [reviews, setReviews] = useState<ReviewResponse[]>([]);
     const [loading, setLoading] = useState(true);
@@ -77,7 +77,7 @@ export default function ReviewListScreen() {
                         <Text className="text-lg font-bold text-slate-900 dark:text-white">후기</Text>
                     </View>
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('ReviewWrite', { dentalId, hospitalName })}
+                        onPress={() => navigation.navigate('ReviewWrite', { dentalId, dentalName })}
                         className="flex-row items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full"
                     >
                         <Plus size={16} color={theme.primary} />

@@ -81,12 +81,7 @@ input UpdateCommentInput {
 }
 
 # 치과(병원) - load_dentals.py로 적재된 데이터
-type Dental {
-  id: ID!
-  name: String!
-  address: String
-  phone: String
-}
+# Dental type is defined in dental.graphqls
 
 extend type Query {
   """최신순. limit 기본 10, offset 기본 0 (페이징). postType 있으면 해당 종류만 (product | hospital)"""

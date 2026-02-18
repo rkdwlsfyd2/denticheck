@@ -9,14 +9,14 @@ import { useColorTheme } from '../shared/providers/ColorThemeProvider';
 import { Button } from '../shared/components/ui/Button';
 import { Badge } from '../shared/components/ui/Badge';
 
-export default function HospitalDetailScreen() {
+export default function DentalDetailScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-    const route = useRoute<RouteProp<RootStackParamList, 'HospitalDetail'>>();
+    const route = useRoute<RouteProp<RootStackParamList, 'DentalDetail'>>();
     const { theme } = useColorTheme();
 
     // Fallback data if no params provided (for development/testing)
     const params = route.params || {};
-    const hospital = params.hospital || {
+    const dental = params.dental || {
         id: '1',
         name: '스마일 치과의원',
         address: '서울특별시 강남구 테헤란로 123',
@@ -36,7 +36,7 @@ export default function HospitalDetailScreen() {
             <View className="h-64 bg-slate-200 dark:bg-slate-800 relative">
                 {/* Overlay Gradient could go here */}
                 <View className="absolute inset-0 flex items-center justify-center">
-                    <Text className="text-slate-400 dark:text-slate-600 font-bold text-lg">Hospital Image</Text>
+                    <Text className="text-slate-400 dark:text-slate-600 font-bold text-lg">Dental Image</Text>
                 </View>
 
                 <SafeAreaView edges={['top']} className="absolute inset-x-0 top-0">
@@ -65,17 +65,17 @@ export default function HospitalDetailScreen() {
                     <View className="border-b border-slate-100 dark:border-slate-800 pb-6 mb-6">
                         <View className="flex-row items-start justify-between mb-2">
                             <View>
-                                <Text className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{hospital.name}</Text>
+                                <Text className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{dental.name}</Text>
                                 <TouchableOpacity
-                                    onPress={() => navigation.navigate('ReviewList', { dentalId: hospital.id, hospitalName: hospital.name })}
+                                    onPress={() => navigation.navigate('ReviewList', { dentalId: dental.id, dentalName: dental.name })}
                                     className="flex-row items-center gap-2"
                                 >
                                     <Star size={18} color="#eab308" fill="#eab308" />
-                                    <Text className="text-base font-bold text-slate-900 dark:text-white">{hospital.rating}</Text>
-                                    <Text className="text-base text-slate-500 underline">({hospital.reviewCount}개의 후기)</Text>
+                                    <Text className="text-base font-bold text-slate-900 dark:text-white">{dental.rating}</Text>
+                                    <Text className="text-base text-slate-500 underline">({dental.reviewCount}개의 후기)</Text>
                                 </TouchableOpacity>
                             </View>
-                            {hospital.isOpen && (
+                            {dental.isOpen && (
                                 <Badge className="bg-green-100 dark:bg-green-900/30">
                                     <Text className="text-green-700 dark:text-green-400 text-xs font-bold">진료중</Text>
                                 </Badge>
@@ -83,7 +83,7 @@ export default function HospitalDetailScreen() {
                         </View>
 
                         <View className="flex-row flex-wrap gap-2 mt-2">
-                            {hospital.features?.map((feature: string, idx: number) => (
+                            {dental.features?.map((feature: string, idx: number) => (
                                 <Badge key={idx} variant="outline" className="border-slate-200 dark:border-slate-700">
                                     <Text className="text-xs text-slate-600 dark:text-slate-400">{feature}</Text>
                                 </Badge>
@@ -99,7 +99,7 @@ export default function HospitalDetailScreen() {
                             </View>
                             <View className="flex-1">
                                 <Text className="text-sm font-bold text-slate-900 dark:text-white mb-1">위치</Text>
-                                <Text className="text-sm text-slate-500 leading-5">{hospital.address}</Text>
+                                <Text className="text-sm text-slate-500 leading-5">{dental.address}</Text>
                             </View>
                         </View>
 
@@ -109,7 +109,7 @@ export default function HospitalDetailScreen() {
                             </View>
                             <View className="flex-1">
                                 <Text className="text-sm font-bold text-slate-900 dark:text-white mb-1">진료시간</Text>
-                                <Text className="text-sm text-slate-500 mb-1">{hospital.openTime}</Text>
+                                <Text className="text-sm text-slate-500 mb-1">{dental.openTime}</Text>
                                 <Text className="text-xs text-slate-400">점심시간 13:00 - 14:00</Text>
                             </View>
                         </View>
@@ -121,7 +121,7 @@ export default function HospitalDetailScreen() {
                             <View className="flex-1">
                                 <Text className="text-sm font-bold text-slate-900 dark:text-white mb-1">병원 소개</Text>
                                 <Text className="text-sm text-slate-500 leading-6">
-                                    {hospital.description || '병원 소개글이 없습니다.'}
+                                    {dental.description || '병원 소개글이 없습니다.'}
                                 </Text>
                             </View>
                         </View>
@@ -135,7 +135,7 @@ export default function HospitalDetailScreen() {
                     <Button
                         variant="outline"
                         className="flex-1 h-12"
-                        onPress={() => Linking.openURL(`tel:${hospital.phone}`)}
+                        onPress={() => Linking.openURL(`tel:${dental.phone}`)}
                     >
                         <Phone size={18} color={theme.primary} style={{ marginRight: 8 }} />
                         <Text className="text-primary font-bold">전화하기</Text>

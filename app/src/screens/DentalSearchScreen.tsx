@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
 import { useQuery } from '@apollo/client/react';
-import { SEARCH_HOSPITALS } from '../graphql/queries';
+import { SEARCH_DENTALS } from '../graphql/queries';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -14,7 +14,7 @@ import { Badge } from '../shared/components/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../shared/components/ui/Tabs';
 import { useColorTheme } from '../shared/providers/ColorThemeProvider';
 
-type Hospital = {
+type Dental = {
     id: string;
     name: string;
     address: string;
@@ -28,7 +28,7 @@ type Hospital = {
     isAd?: boolean;
 };
 
-interface HospitalQueryContent {
+interface DentalQueryContent {
     id: string;
     name: string;
     address?: string;
@@ -37,13 +37,13 @@ interface HospitalQueryContent {
     longitude?: number;
 }
 
-interface SearchHospitalsData {
-    searchHospitals: {
-        content: HospitalQueryContent[];
+interface SearchDentalsData {
+    searchDentals: {
+        content: DentalQueryContent[];
     };
 }
 
-interface SearchHospitalsVars {
+interface SearchDentalsVars {
     latitude: number;
     longitude: number;
     radius: number;
@@ -51,7 +51,7 @@ interface SearchHospitalsVars {
     size: number;
 }
 
-export default function HospitalsScreen() {
+export default function DentalSearchScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const route = useRoute();
     const { theme } = useColorTheme();
@@ -76,7 +76,7 @@ export default function HospitalsScreen() {
         longitude: 126.9707,
     };
 
-    const { data, loading, error, fetchMore } = useQuery<SearchHospitalsData, SearchHospitalsVars>(SEARCH_HOSPITALS, {
+    const { data, loading, error, fetchMore } = useQuery<SearchDentalsData, SearchDentalsVars>(SEARCH_DENTALS, {
         variables: {
             latitude: defaultLocation.latitude,
             longitude: defaultLocation.longitude,
@@ -86,16 +86,16 @@ export default function HospitalsScreen() {
         },
     });
 
-    const hospitalsData = data?.searchHospitals?.content || [];
+    const dentalsData = data?.searchDentals?.content || [];
 
-    const hospitals: Hospital[] = hospitalsData.map((h: any) => ({
-        id: h.id,
-        name: h.name,
-        address: h.address || '주소 정보 없음',
+    const dentals: Dental[] = dentalsData.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        address: d.address || '주소 정보 없음',
         distance: '0.0km', // TODO: Calculate distance
         rating: 0.0, // Mock
         reviewCount: 0, // Mock
-        phone: h.phone || '',
+        phone: d.phone || '',
         isOpen: true, // Mock
         openTime: '09:00 - 18:00', // Mock
         features: [], // Mock
@@ -113,7 +113,7 @@ export default function HospitalsScreen() {
     if (error) {
         return (
             <View className="flex-1 items-center justify-center bg-background">
-                <Text className="text-red-500">Error loading hospitals: {error.message}</Text>
+                <Text className="text-red-500">Error loading dentals: {error.message}</Text>
             </View>
         );
     }
@@ -124,20 +124,20 @@ export default function HospitalsScreen() {
         );
     };
 
-    const filteredHospitals = hospitals.filter((hospital) =>
-        hospital.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        hospital.address.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredDentals = dentals.filter((dental) =>
+        dental.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        dental.address.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const favoriteHospitals = hospitals.filter((h) => favorites.includes(h.id));
+    const favoriteDentals = dentals.filter((d) => favorites.includes(d.id));
 
-    const HospitalCard = ({ hospital }: { hospital: Hospital }) => (
+    const DentalCard = ({ dental }: { dental: Dental }) => (
         <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => navigation.navigate('HospitalDetail', { hospital })}
+            onPress={() => navigation.navigate('DentalDetail', { dental })}
         >
             <Card className="p-5 mb-4">
-                {hospital.isAd && (
+                {dental.isAd && (
                     <View className="self-start mb-3">
                         <Badge className="bg-blue-600">
                             <Text className="text-white text-xs">광고</Text>
@@ -147,28 +147,28 @@ export default function HospitalsScreen() {
 
                 <View className="flex-row items-start justify-between mb-3">
                     <View className="flex-1 mr-2">
-                        <Text className="font-semibold text-lg mb-1 text-foreground">{hospital.name}</Text>
+                        <Text className="font-semibold text-lg mb-1 text-foreground">{dental.name}</Text>
                         <View className="flex-row items-center gap-2 mb-2">
                             <View className="flex-row items-center gap-1">
                                 <Star size={16} color="#eab308" fill="#eab308" />
-                                <Text className="font-medium text-sm text-foreground">{hospital.rating}</Text>
-                                <Text className="text-sm text-muted-foreground">({hospital.reviewCount})</Text>
+                                <Text className="font-medium text-sm text-foreground">{dental.rating}</Text>
+                                <Text className="text-sm text-muted-foreground">({dental.reviewCount})</Text>
                             </View>
                             <Text className="text-muted-foreground">•</Text>
                             <View className="flex-row items-center gap-1">
                                 <Navigation size={14} color="#4b5563" />
-                                <Text className="text-sm text-muted-foreground">{hospital.distance}</Text>
+                                <Text className="text-sm text-muted-foreground">{dental.distance}</Text>
                             </View>
                         </View>
                     </View>
                     <TouchableOpacity
-                        onPress={() => toggleFavorite(hospital.id)}
+                        onPress={() => toggleFavorite(dental.id)}
                         className="p-2 bg-muted/50 rounded-full"
                     >
                         <Heart
                             size={20}
-                            color={favorites.includes(hospital.id) ? '#ef4444' : '#9ca3af'}
-                            fill={favorites.includes(hospital.id) ? '#ef4444' : 'transparent'}
+                            color={favorites.includes(dental.id) ? '#ef4444' : '#9ca3af'}
+                            fill={favorites.includes(dental.id) ? '#ef4444' : 'transparent'}
                         />
                     </TouchableOpacity>
                 </View>
@@ -176,19 +176,19 @@ export default function HospitalsScreen() {
                 <View className="space-y-2 mb-4">
                     <View className="flex-row items-start gap-2">
                         <MapPin size={16} color="#4b5563" style={{ marginTop: 2 }} />
-                        <Text className="text-sm text-muted-foreground flex-1">{hospital.address}</Text>
+                        <Text className="text-sm text-muted-foreground flex-1">{dental.address}</Text>
                     </View>
                     <View className="flex-row items-center gap-2">
                         <Clock size={16} color="#4b5563" />
-                        <Text className={`text-sm ${hospital.isOpen ? 'text-green-600' : 'text-muted-foreground'}`}>
-                            {hospital.isOpen ? '영업 중' : '영업 종료'}
+                        <Text className={`text-sm ${dental.isOpen ? 'text-green-600' : 'text-muted-foreground'}`}>
+                            {dental.isOpen ? '영업 중' : '영업 종료'}
                         </Text>
-                        <Text className="text-sm text-muted-foreground">• {hospital.openTime}</Text>
+                        <Text className="text-sm text-muted-foreground">• {dental.openTime}</Text>
                     </View>
                 </View>
 
                 <View className="flex-row flex-wrap gap-2 mb-4">
-                    {hospital.features.map((feature, idx) => (
+                    {dental.features.map((feature, idx) => (
                         <Badge key={idx} variant="outline">
                             <Text className="text-xs text-foreground">{feature}</Text>
                         </Badge>
@@ -196,7 +196,7 @@ export default function HospitalsScreen() {
                 </View>
 
                 <View className="flex-row gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" onPress={() => Linking.openURL(`tel:${hospital.phone}`)}>
+                    <Button variant="outline" size="sm" className="flex-1" onPress={() => Linking.openURL(`tel:${dental.phone}`)}>
                         <Phone size={16} color={theme.primary} style={{ marginRight: 4 }} />
                         <Text className="text-primary font-medium">전화</Text>
                     </Button>
@@ -216,7 +216,7 @@ export default function HospitalsScreen() {
                     <View className="flex-row items-center justify-between">
                         <Text className="text-2xl font-extrabold text-slate-800 dark:text-white">병원 찾기</Text>
                         <TouchableOpacity
-                            onPress={() => navigation.navigate('HospitalMap')}
+                            onPress={() => navigation.navigate('DentalMap')}
                             className="bg-blue-50 p-2 rounded-full"
                         >
                             <MapPinned size={24} color={theme.primary} />
@@ -267,11 +267,11 @@ export default function HospitalsScreen() {
                             </View>
                         </Card>
 
-                        {filteredHospitals.map(hospital => (
-                            <HospitalCard key={hospital.id} hospital={hospital} />
+                        {filteredDentals.map(dental => (
+                            <DentalCard key={dental.id} dental={dental} />
                         ))}
 
-                        {filteredHospitals.length === 0 && (
+                        {filteredDentals.length === 0 && (
                             <View className="items-center py-12">
                                 <MapPin size={48} color="#d1d5db" />
                                 <Text className="text-muted-foreground mt-4">검색 결과가 없습니다</Text>
@@ -282,9 +282,9 @@ export default function HospitalsScreen() {
 
                 <TabsContent value="favorites" className="flex-1">
                     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
-                        {favoriteHospitals.length > 0 ? (
-                            favoriteHospitals.map(hospital => (
-                                <HospitalCard key={hospital.id} hospital={hospital} />
+                        {favoriteDentals.length > 0 ? (
+                            favoriteDentals.map(dental => (
+                                <DentalCard key={dental.id} dental={dental} />
                             ))
                         ) : (
                             <View className="items-center py-12">

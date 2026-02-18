@@ -96,7 +96,7 @@ public class SecurityConfig {
                                                                                                             // 문서
                                                                                                             // (Magidoc)
                         .requestMatchers("/community/post/**").permitAll() // 공유 링크용 리다이렉트 (앱 딥링크로 이동)
-                        .requestMatchers("/graphql").hasRole(UserRoleType.USER.name())
+                        .requestMatchers("/graphql").permitAll()
                         .requestMatchers("/admin/**").hasRole(UserRoleType.ADMIN.name())
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e

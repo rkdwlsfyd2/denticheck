@@ -1,8 +1,8 @@
 import { gql } from '@apollo/client';
 
-export const GET_HOSPITALS = gql`
-  query GetHospitals {
-    hospitals {
+export const GET_DENTALS_LIST = gql`
+  query GetDentalsList {
+    allDentals {
       id
       name
       address
@@ -15,9 +15,9 @@ export const GET_HOSPITALS = gql`
   }
 `;
 
-export const SEARCH_HOSPITALS = gql`
-  query SearchHospitals($latitude: Float!, $longitude: Float!, $radius: Float, $page: Int, $size: Int) {
-    searchHospitals(latitude: $latitude, longitude: $longitude, radius: $radius, page: $page, size: $size) {
+export const SEARCH_DENTALS = gql`
+  query SearchDentals($latitude: Float!, $longitude: Float!, $radius: Float, $page: Int, $size: Int) {
+    searchDentals(latitude: $latitude, longitude: $longitude, radius: $radius, page: $page, size: $size) {
       content {
         id
         name

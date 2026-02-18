@@ -2,16 +2,18 @@ import React, { useEffect, useRef, useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as Linking from "expo-linking";
 import { NavigationContainerRef, CommonActions } from "@react-navigation/native";
+import { View, ActivityIndicator, InteractionManager } from "react-native";
 
 import { BottomTabs } from "./BottomTabs";
 import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
 import SurveyScreen from "../screens/SurveyScreen";
 import ThemeSelectorScreen from "../screens/ThemeSelectorScreen";
-import HospitalMapScreen from "../screens/HospitalMapScreen";
+import DentalSearchScreen from "../screens/DentalSearchScreen";
+import DentalMapScreen from "../screens/DentalMapScreen";
 import RecommendedProductsScreen from "../screens/RecommendedProductsScreen";
 import InsuranceProductsScreen from "../screens/InsuranceProductsScreen";
-import HospitalDetailScreen from "../screens/HospitalDetailScreen";
+import DentalDetailScreen from "../screens/DentalDetailScreen";
 import ProductDetailScreen from "../screens/ProductDetailScreen";
 import CartScreen from "../screens/CartScreen";
 import CommentListScreen from "../screens/community/CommentListScreen";
@@ -21,7 +23,6 @@ import TermsPoliciesScreen from "../screens/TermsPoliciesScreen";
 import ReviewListScreen from "../screens/ReviewListScreen";
 import ReviewWriteScreen from "../screens/ReviewWriteScreen";
 import { useAuth } from "../shared/providers/AuthProvider";
-import { View, ActivityIndicator, InteractionManager } from "react-native";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -30,18 +31,19 @@ export type RootStackParamList = {
   Main: undefined | { screen: "Community"; params: { scrollToPostId: string } };
   Survey: undefined;
   ThemeSelector: undefined;
-  HospitalMap: undefined;
+  DentalSearch: { tab?: string };
+  DentalMap: undefined;
   RecommendedProducts: undefined;
   InsuranceProducts: undefined;
-  HospitalDetail: { hospital: any };
+  DentalDetail: { dental: any };
   ProductDetail: { product: any };
   Cart: undefined;
   CommentList: { postId: string };
   NotificationSettings: undefined;
   CustomerService: undefined;
   TermsPolicies: undefined;
-  ReviewList: { dentalId: string; hospitalName: string };
-  ReviewWrite: { dentalId: string; hospitalName: string };
+  ReviewList: { dentalId: string; dentalName: string };
+  ReviewWrite: { dentalId: string; dentalName: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -61,18 +63,18 @@ export function RootNavigator() {
     try {
       const parsed = Linking.parse(url);
       // path는 문자열 또는 배열일 수 있음
-      const path = Array.isArray(parsed.path) 
-        ? parsed.path.join("/") 
+      const path = Array.isArray(parsed.path)
+        ? parsed.path.join("/")
         : parsed.path || "";
-      
+
       // denticheck://community/post/{id} 형식 처리
       if (path.includes("community/post/")) {
         const parts = path.split("/");
         const postIndex = parts.indexOf("post");
-        const postId = postIndex >= 0 && postIndex < parts.length - 1 
-          ? parts[postIndex + 1] 
+        const postId = postIndex >= 0 && postIndex < parts.length - 1
+          ? parts[postIndex + 1]
           : null;
-        
+
         if (postId && user) {
           // 로그인되어 있으면 커뮤니티 탭으로 이동 후 해당 게시글 위치로 스크롤
           pendingDeepLinkRef.current = null;
@@ -148,7 +150,8 @@ export function RootNavigator() {
           <Stack.Screen name="Main" component={BottomTabs} />
           <Stack.Screen name="Survey" component={SurveyScreen} />
           <Stack.Screen name="ThemeSelector" component={ThemeSelectorScreen} />
-          <Stack.Screen name="HospitalMap" component={HospitalMapScreen} />
+          <Stack.Screen name="DentalSearch" component={DentalSearchScreen} />
+          <Stack.Screen name="DentalMap" component={DentalMapScreen} />
           <Stack.Screen
             name="RecommendedProducts"
             component={RecommendedProductsScreen}
@@ -158,8 +161,8 @@ export function RootNavigator() {
             component={InsuranceProductsScreen}
           />
           <Stack.Screen
-            name="HospitalDetail"
-            component={HospitalDetailScreen}
+            name="DentalDetail"
+            component={DentalDetailScreen}
           />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />

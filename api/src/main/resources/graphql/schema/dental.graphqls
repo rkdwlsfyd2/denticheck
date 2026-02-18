@@ -1,4 +1,4 @@
-type Hospital {
+type Dental {
   id: ID!
   name: String!
   address: String
@@ -18,20 +18,20 @@ type PageInfo {
 }
 
 type DentalPage {
-  content: [Hospital]
+  content: [Dental]
   pageInfo: PageInfo
 }
 
 extend type Query {
-  hospitals: [Hospital]
-  searchHospitals(
+  allDentals: [Dental]
+  searchDentals(
     latitude: Float!
     longitude: Float!
     radius: Float = 5.0
     page: Int = 0
     size: Int = 10
   ): DentalPage
-  myFavoriteHospitals: [Hospital]
+  myFavoriteDentals: [Dental]
 }
 
 type Review {
@@ -44,7 +44,7 @@ type Review {
     updatedAt: String
 }
 
-extend type Hospital {
+extend type Dental {
     reviews: [Review]
 }
 

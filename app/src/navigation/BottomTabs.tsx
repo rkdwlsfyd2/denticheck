@@ -5,7 +5,7 @@ import { Home, Camera, MessageSquare, Search, User, Users } from 'lucide-react-n
 import HomeScreen from '../screens/HomeScreen';
 import AICheckScreen from '../screens/AICheckScreen';
 import ChatbotScreen from '../screens/ChatbotScreen';
-import HospitalsScreen from '../screens/HospitalsScreen';
+import DentalSearchScreen from '../screens/DentalSearchScreen';
 import MyPageScreen from '../screens/MyPageScreen';
 import CommunityScreen from '../screens/community/CommunityScreen';
 
@@ -44,8 +44,8 @@ export function BottomTabs() {
                 }}
             />
             <Tab.Screen
-                name="Hospitals"
-                component={HospitalsScreen}
+                name="DentalSearch"
+                component={DentalSearchScreen}
                 options={{
                     tabBarLabel: '병원찾기',
                     tabBarIcon: ({ color, size }) => <Search color={color} size={size} />

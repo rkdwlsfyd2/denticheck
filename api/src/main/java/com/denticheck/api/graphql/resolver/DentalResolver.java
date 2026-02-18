@@ -17,7 +17,7 @@ public class DentalResolver {
     private final DentalService dentalService;
 
     @QueryMapping
-    public List<DentalEntity> hospitals() {
+    public List<DentalEntity> allDentals() {
         return dentalService.getAllDentals();
     }
 
@@ -29,7 +29,7 @@ public class DentalResolver {
     }
 
     @QueryMapping
-    public DentalPage searchHospitals(@Argument Double latitude, @Argument Double longitude,
+    public DentalPage searchDentals(@Argument Double latitude, @Argument Double longitude,
             @Argument Double radius, @Argument int page, @Argument int size) {
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
         org.springframework.data.domain.Page<DentalEntity> dentalPage = dentalService.getNearbyDentals(latitude,
@@ -56,24 +56,16 @@ public class DentalResolver {
         private int totalElements;
     }
 
-    @org.springframework.graphql.data.method.annotation.SchemaMapping(typeName = "Hospital", field = "reviews")
+    // ...
+    @org.springframework.graphql.data.method.annotation.SchemaMapping(typeName = "Dental", field = "reviews")
     public List<com.denticheck.api.domain.dental.entity.DentalReviewEntity> reviews(DentalEntity dental) {
         return dentalService.getReviews(dental.getId());
     }
 
-    @org.springframework.graphql.data.method.annotation.MutationMapping
-    public com.denticheck.api.domain.dental.entity.DentalReviewEntity createReview(@Argument java.util.UUID dentalId,
-            @Argument int rating,
-            @Argument String content,
-            @Argument List<String> tags) {
-        String username = org.springframework.security.core.context.SecurityContextHolder.getContext()
-                .getAuthentication().getName();
-        return dentalService.createReview(dentalId, username, rating, content, tags);
-    }
-
+    // ...
     @QueryMapping
     @PreAuthorize("hasRole('USER')")
-    public List<DentalEntity> myFavoriteHospitals() {
+    public List<DentalEntity> myFavoriteDentals() {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext()
                 .getAuthentication().getName();
         return dentalService.getMyFavoriteDentals(username);

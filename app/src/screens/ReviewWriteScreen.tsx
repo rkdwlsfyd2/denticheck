@@ -13,7 +13,7 @@ export default function ReviewWriteScreen() {
     const { theme } = useColorTheme();
 
     const dentalId = route.params?.dentalId;
-    const hospitalName = route.params?.hospitalName || '병원';
+    const dentalName = route.params?.dentalName || '병원';
 
     const [rating, setRating] = useState(5);
     const [content, setContent] = useState('');
@@ -75,7 +75,7 @@ export default function ReviewWriteScreen() {
                 >
                     <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20 }}>
                         <Text className="text-xl font-bold text-center text-slate-900 dark:text-white mb-2">
-                            {hospitalName}
+                            {dentalName}
                         </Text>
                         <Text className="text-center text-slate-500 dark:text-slate-400 mb-6">
                             진료는 만족스러우셨나요?

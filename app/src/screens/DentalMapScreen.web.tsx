@@ -7,7 +7,7 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 
 const { width, height } = Dimensions.get('window');
 
-export default function HospitalMapScreen() {
+export default function DentalMapScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
     return (
