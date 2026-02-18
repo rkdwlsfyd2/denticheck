@@ -31,6 +31,11 @@ ai:
         timeout: 3m
         enabled: true
 
+upload:
+    storage:
+        local-dir: ${UPLOAD_LOCAL_DIR:./uploads/community}
+        base-url: ${UPLOAD_BASE_URL:http://localhost:8080/uploads/community}
+
 report:
     storage:
         type: local

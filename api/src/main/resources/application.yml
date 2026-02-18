@@ -8,6 +8,12 @@ spring:
         schema:
             printer:
                 enabled: true
+# 게시글 이미지 업로드 (로컬 저장 후 URL 반환)
+upload:
+    storage:
+        local-dir: ${UPLOAD_LOCAL_DIR:./uploads/community}
+        base-url: ${UPLOAD_BASE_URL:http://localhost:8080/uploads/community}
+
 jwt:
     secret-key: himynameiskimjihunmyyoutubechann
     accessTokenExpiresIn: 1h

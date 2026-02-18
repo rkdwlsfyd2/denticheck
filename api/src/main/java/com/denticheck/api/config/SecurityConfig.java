@@ -81,16 +81,15 @@ public class SecurityConfig {
                         .redirectionEndpoint(endpoint -> endpoint.baseUri("/oauth2/callback/*")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers("/reports/**").permitAll()
+                        .requestMatchers("/reports/**", "/uploads/**").permitAll()
                         .requestMatchers("/oauth2/**", "/oauth2/callback/**").permitAll()
                         .requestMatchers("/auth/mobile/google").permitAll()
                         .requestMatchers("/api/ai-check", "/api/ai-check/**").permitAll()
                         .requestMatchers("/jwt/exchange", "/jwt/refresh", "/jwt/logout", "/jwt/dev-login").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll() // REST 문서 기본 경로(springdoc)
                         .requestMatchers("/docs/api-docs/**", "/docs/swagger-ui/**").permitAll() // REST 문서 (springdoc)
-                        .requestMatchers("/docs/graphql", "/docs/graphql/", "/docs/graphql/**").permitAll() // GraphQL
-                                                                                                            // 문서
-                                                                                                            // (Magidoc)
+                        .requestMatchers("/docs/graphql", "/docs/graphql/", "/docs/graphql/**").permitAll() // GraphQL 문서 (Magidoc)
+                        .requestMatchers("/community/post/**").permitAll() // 공유 링크용 리다이렉트 (앱 딥링크로 이동)
                         .requestMatchers("/graphql").hasRole(UserRoleType.USER.name())
                         .requestMatchers("/admin/**").hasRole(UserRoleType.ADMIN.name())
                         .anyRequest().authenticated())
