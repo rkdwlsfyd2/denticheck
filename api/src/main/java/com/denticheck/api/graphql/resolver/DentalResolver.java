@@ -26,11 +26,6 @@ public class DentalResolver {
     private final DentalRepository dentalRepository;
 
     @QueryMapping
-    public List<DentalEntity> hospitals() {
-        return dentalService.getAllDentals();
-    }
-
-    @QueryMapping
     public List<DentalEntity> dentals(
             @Argument("name") String name,
             @Argument("limit") Integer limit) {
@@ -44,7 +39,7 @@ public class DentalResolver {
     }
 
     @QueryMapping
-    public DentalPage searchHospitals(@Argument Double latitude, @Argument Double longitude,
+    public DentalPage searchDentals(@Argument Double latitude, @Argument Double longitude,
             @Argument Double radius, @Argument int page, @Argument int size) {
 
         double searchRadius = (radius != null) ? radius : 5.0;
@@ -90,7 +85,7 @@ public class DentalResolver {
 
     @QueryMapping
     @PreAuthorize("hasRole('USER')")
-    public List<DentalEntity> myFavoriteHospitals() {
+    public List<DentalEntity> myFavoriteDentals() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return dentalService.getMyFavoriteDentals(username);
     }
