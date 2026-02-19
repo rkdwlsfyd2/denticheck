@@ -57,6 +57,7 @@ extend type Mutation {
         rating: Int!
         content: String!
         tags: [String]
+        isAnonymous: Boolean = false
     ): Review
 
     toggleDentalLike(dentalId: ID!): Boolean

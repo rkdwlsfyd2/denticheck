@@ -1,6 +1,7 @@
 package com.denticheck.api.domain.dental.repository;
 
 import com.denticheck.api.domain.dental.entity.DentalEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,7 +21,7 @@ public interface DentalRepository extends JpaRepository<DentalEntity, UUID> {
             + HAVERSINE_FORMULA, countQuery = "SELECT count(*) FROM dentals d WHERE d.lat BETWEEN :minLat AND :maxLat AND d.lng BETWEEN :minLng AND :maxLng AND "
                     + HAVERSINE_FORMULA
                     + " < :radius", nativeQuery = true)
-    org.springframework.data.domain.Page<DentalEntity> findNearbyDentals(
+    Page<DentalEntity> findNearbyDentals(
             @Param("latitude") double latitude,
             @Param("longitude") double longitude,
             @Param("radius") double radius,
@@ -28,7 +29,7 @@ public interface DentalRepository extends JpaRepository<DentalEntity, UUID> {
             @Param("maxLat") double maxLat,
             @Param("minLng") double minLng,
             @Param("maxLng") double maxLng,
-            org.springframework.data.domain.Pageable pageable);
+            Pageable pageable);
 
     List<DentalEntity> findByNameContainingIgnoreCaseOrderByNameAsc(String name, Pageable pageable);
 

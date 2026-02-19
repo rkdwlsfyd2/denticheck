@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Alert, Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
@@ -10,7 +17,8 @@ const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 
 if (!API_SERVER_URL) throw new Error("EXPO_PUBLIC_API_SERVER_URL is missing");
-if (!GOOGLE_WEB_CLIENT_ID) throw new Error("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing");
+if (!GOOGLE_WEB_CLIENT_ID)
+  throw new Error("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing");
 
 // Expo Go 여부 (deprecated appOwnership 대신)
 const isExpoGo = Constants.executionEnvironment === "storeClient";
@@ -44,7 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const googleConfiguredRef = useRef(false);
 
-  const saveSession = async (accessToken: string, refreshToken?: string, u?: AuthUser) => {
+  const saveSession = async (
+    accessToken: string,
+    refreshToken?: string,
+    u?: AuthUser,
+  ) => {
     setToken(accessToken);
     await SecureStore.setItemAsync("accessToken", accessToken);
     if (refreshToken) {
@@ -56,7 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // u가 없으면 기존 User 유지 (토큰만 갱신하는 경우를 위해 삭제 로직 제거)
   };
-
   const clearSession = async () => {
     setToken(null);
     setUser(null);
@@ -70,7 +81,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedToken = await SecureStore.getItemAsync("accessToken");
       const storedUser = await SecureStore.getItemAsync("user");
 
-      if (storedToken) setToken(storedToken);
+      // Backward compatibility for old dev token format
+      const normalizedToken =
+        storedToken === "dev-access-token"
+          ? "devAccessToken-user"
+          : storedToken === "dev-access-token-admin"
+            ? "devAccessToken-admin"
+            : storedToken === "dev-access-token-user"
+              ? "devAccessToken-user"
+              : storedToken;
+
+      if (normalizedToken && normalizedToken !== storedToken) {
+        await SecureStore.setItemAsync("accessToken", normalizedToken);
+      }
+
+      if (normalizedToken) setToken(normalizedToken);
       if (storedUser) setUser(JSON.parse(storedUser));
     } catch (e) {
       console.error("Failed to load auth auth storage:", e);
@@ -103,7 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       : { ...user, provider: "google" };
 
-    console.log("accessToken: ", accessToken);
     await saveSession(accessToken, refreshToken, mergedUser);
   };
 
@@ -116,7 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Dev Build에서만 동작하도록 동적 import
       const mod = await import("@react-native-google-signin/google-signin");
       const { GoogleSignin, statusCodes } = mod;
-
       if (!googleConfiguredRef.current) {
         GoogleSignin.configure({
           webClientId: GOOGLE_WEB_CLIENT_ID,
@@ -131,20 +154,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const userInfo = await GoogleSignin.signIn();
       const user: AuthUser = {
-        email: userInfo.data?.user.email ?? undefined,
+        email: userInfo.data?.user.email,
         name: userInfo.data?.user.name ?? undefined,
         picture: userInfo.data?.user.photo ?? undefined,
       };
 
-      // ✅ 이걸로 idToken 다시 요청 가능(가끔 signIn 결과에 없을 때가 있음)
       const tokens = await GoogleSignin.getTokens().catch(() => null);
 
-      const idToken =
-        userInfo.data?.idToken ||
-        (tokens as any)?.idToken || // 버전에 따라 형태가 다를 수 있음
-        null;
+      const signInIdToken =
+        userInfo.type === "success" ? userInfo.data.idToken : null;
+      const idToken = signInIdToken ?? tokens?.idToken ?? null;
 
-      if (!idToken) throw new Error("No idToken. Check webClientId / console settings.");
+      if (!idToken)
+        throw new Error("No idToken. Check webClientId / console settings.");
 
       await exchangeIdTokenToJwt(idToken, user);
     } catch (e: any) {
@@ -180,15 +202,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setIsLoading(true);
     try {
-      const isUser = role === "user";
       const mockUser: AuthUser = {
-        email: isUser ? "dev@denticheck.com" : "admin@denticheck.com",
-        name: isUser ? "Dev User" : "Dev Admin",
+        email: "dev@denticheck.com",
+        name: role === "admin" ? "Dev Admin" : "Dev User",
         picture: "https://via.placeholder.com/150",
         provider: "dev",
       };
       // JWTFilter에서 devAccessToken-user / devAccessToken-admin 체크함
-      const mockAccessToken = isUser ? "devAccessToken-user" : "devAccessToken-admin";
+      const mockAccessToken =
+        role === "admin" ? "devAccessToken-admin" : "devAccessToken-user";
       const mockRefreshToken = "dev-refresh-token"; // 리프레시는 딱히 검증 안 함(DB에 없으면 만료 처리될 뿐)
 
       await saveSession(mockAccessToken, mockRefreshToken, mockUser);
@@ -206,7 +228,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 1. 서버 로그아웃 호출 (DB 토큰 무효화)
       if (refreshToken) {
         try {
-          // Controller 기반 로그아웃 엔드포인트 호출
           await axios.post(`${API_SERVER_URL}/jwt/logout`, { refreshToken }, { timeout: 3000 });
         } catch (serverError) {
           console.log("Server logout failed, but proceeding with local logout", serverError);
@@ -218,13 +239,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const mod = await import("@react-native-google-signin/google-signin");
           await mod.GoogleSignin.signOut();
-        } catch {
-          // 구글 모듈 로그아웃 실패는 무시
-        }
+        } catch { }
       }
 
       // 3. 로컬 세션 클리어
       await clearSession();
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+      console.error("Logout failed:", e);
     } finally {
       setIsLoading(false);
     }
@@ -270,18 +292,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             // 토큰 갱신 요청
-            // 주의: requestInterceptor에서 Authorization 헤더 제외됨
             const { data } = await axios.post(`${API_SERVER_URL}/jwt/refresh`, {
               refreshToken,
             });
 
-            const { accessToken: newAccessToken, refreshToken: newRefreshToken } = data;
+            // 백엔드 명세에 따라 accessToken, refreshToken 또는 newAccessToken, newRefreshToken 확인
+            const newAccessToken = data.newAccessToken || data.accessToken;
+            const newRefreshToken = data.newRefreshToken || data.refreshToken;
 
             if (newAccessToken) {
               // 새 토큰 저장. API가 user를 안 주면 기존 user 상태를 유지하기 위해 인자로 넘김
               // saveSession 로직이 (u) ? set : delete 이므로,
               // 갱신 시에는 반드시 user 객체를 넘겨야 함.
-              await saveSession(newAccessToken, newRefreshToken, user || undefined);
+              await saveSession(
+                newAccessToken,
+                newRefreshToken,
+                user || undefined,
+              );
 
               // 실패했던 요청에 새 토큰 적용 후 재시도
               originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;

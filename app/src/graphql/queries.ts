@@ -43,6 +43,7 @@ export const SEARCH_DENTALS = gql`
   }
 `;
 
+
 export const GET_POSTS = gql`
   query GetPosts($limit: Int, $offset: Int, $postType: String) {
     posts(limit: $limit, offset: $offset, postType: $postType) {

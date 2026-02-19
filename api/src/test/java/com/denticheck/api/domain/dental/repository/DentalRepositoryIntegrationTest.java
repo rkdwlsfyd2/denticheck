@@ -59,7 +59,7 @@ class DentalRepositoryIntegrationTest {
                                 .lng(BigDecimal.valueOf(129.0756))
                                 .build();
 
-                dentalRepository.saveAll(List.of(cityHallDental, gangnamDental, busanDental));
+                dentalRepository.saveAll(java.util.List.of(cityHallDental, gangnamDental, busanDental));
 
                 // When: Search within 5km radius
                 double radius = 5.0;

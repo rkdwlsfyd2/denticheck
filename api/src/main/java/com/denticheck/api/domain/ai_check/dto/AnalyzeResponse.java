@@ -14,10 +14,10 @@ import java.util.List;
 public class AnalyzeResponse {
     private String sessionId;
     private String status;
+    private String pdfUrl;
     private List<DetectionItem> detections;
     private RagSummary rag;
     private LlmResult llmResult;
-    private String pdfUrl;
 
     @Getter
     @Builder

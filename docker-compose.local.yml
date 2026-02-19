@@ -1,4 +1,4 @@
-services:
+﻿services:
     # ----------------------------------------
     # Database (PostgreSQL)
     # ----------------------------------------
@@ -113,7 +113,7 @@ services:
             - OLLAMA_KEEP_ALIVE=-1
         networks:
             - denticheck-network
-    # ✅ 최초 1회 모델 다운로드용 (끝나면 종료됨)
+    # ??理쒖큹 1??紐⑤뜽 ?ㅼ슫濡쒕뱶??(?앸굹硫?醫낅즺??
     ollama-init:
         image: ollama/ollama:latest
         platform: linux/amd64
@@ -148,7 +148,7 @@ services:
         environment:
             - ENV=local
             - YOLO_MODEL_PATH=/app/models/yolo/weights/best.pt
-            # 내부 통신용 (Docker network)
+            # ?대? ?듭떊??(Docker network)
             - MILVUS_URI=http://milvus:19530
             - OLLAMA_BASE_URL=http://ollama:11434
         networks:
@@ -179,7 +179,7 @@ services:
             - DB_USERNAME=admin
             - DB_PASSWORD=admin_password
             - AI_SERVICE_URL=http://ai:8000
-            - OLLAMA_ENABLED=true
+            - OLLAMA_ENABLED=${OLLAMA_ENABLED:-false}
             - OLLAMA_BASE_URL=http://ollama:11434
             - OLLAMA_MODEL=llama3.2:3b
             - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
@@ -208,3 +208,4 @@ volumes:
     denticheck_minio_data:
     denticheck_milvus_data:
     denticheck_ollama_data:
+

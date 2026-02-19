@@ -23,13 +23,14 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from denticheck_ai.pipelines.llm import prompts
+from denticheck_ai.core.settings import settings
 
 class LlmClient:
     """
     Ollama 엔진을 기반으로 다양한 언어 모델 작업을 수행하는 클라이언트 클래스입니다.
     """
 
-    def __init__(self, model_name: str = "llama3.2:3b"):
+    def __init__(self, model_name: str | None = None):
         """
         클라이언트 초기화: Ollama 주소 및 모델 설정
         
@@ -39,7 +40,7 @@ class LlmClient:
         # 서버 주소 설정 (Docker 환경 등 대응 가능하도록 환경변수 참조)
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         
-        self.model = model_name
+        self.model = model_name or os.getenv("OLLAMA_MODEL", settings.OLLAMA_MODEL)
         # ChatOllama 객체 생성 (온도를 0.2로 설정하여 일관된 전문 답변 유도)
         self.llm = ChatOllama(
             model=self.model,
@@ -73,13 +74,18 @@ class LlmClient:
             system_prompt = prompts.get_system_persona_doctor(language=language)
             
         try:
+            # 모델의 순응도를 높이기 위해 규칙을 메시지 뒤에 한 번 더 상기시킵니다.
+            instruction = "\n\n(반드시 지킬 것: 한글로만 답변, 영어 및 한자 사용 금지, 강조기호 ** 금지, 불렛은 • 사용)"
             messages = [
                 SystemMessage(content=system_prompt),
-                HumanMessage(content=user_message)
+                HumanMessage(content=user_message + instruction)
             ]
             # 비동기 호출로 변경 (ainvoke)
             response = await self.llm.ainvoke(messages)
-            return await self.parser.ainvoke(response)
+            content = await self.parser.ainvoke(response)
+            
+            # 최종 방어 코드: 혹시라도 포함된 ** 기호 제거
+            return content.replace("**", "")
         except Exception as e:
             return f"LLM 호출 중 오류 발생: {str(e)}"
 
@@ -98,13 +104,16 @@ class LlmClient:
         if system_prompt is None:
             system_prompt = prompts.get_system_persona_doctor(language=language)
             
+        # 모델의 순응도를 높이기 위해 규칙을 메시지 뒤에 한 번 더 상기시킵니다.
+        instruction = "\n\n(반드시 지킬 것: 한글로만 답변, 영어 및 한자 사용 금지, 강조기호 ** 금지, 불렛은 • 사용)"
         messages = [
             SystemMessage(content=system_prompt),
-            HumanMessage(content=user_message)
+            HumanMessage(content=user_message + instruction)
         ]
         # 비동기 스트림 (astream)
         async for chunk in (self.llm | self.parser).astream(messages):
-            yield chunk
+            # 스트리밍 중에도 강조 기호가 나오면 제거 (간단한 필터링)
+            yield chunk.replace("**", "")
 
     async def generate_report(self, data, context: str = "", language: str = "ko") -> dict:
         """
