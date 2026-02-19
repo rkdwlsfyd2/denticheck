@@ -37,6 +37,12 @@ public class DentalEntity {
     @Column(name = "address", nullable = false, columnDefinition = "TEXT")
     private String address;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "homepage_url", length = 500)
+    private String homepageUrl;
+
     @Column(name = "sido_code", length = 20)
     private String sidoCode;
 
@@ -59,12 +65,6 @@ public class DentalEntity {
 
     @Column(name = "business_status", length = 30)
     private String businessStatus;
-
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
-
-    @Column(name = "homepage_url", length = 500)
-    private String homepageUrl;
 
     @Column(name = "rating_avg", nullable = false, precision = 3, scale = 2)
     @Builder.Default

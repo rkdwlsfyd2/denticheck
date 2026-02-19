@@ -137,15 +137,4 @@ public class DentalServiceImpl implements DentalService {
 
         return review;
     }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<DentalEntity> searchDentals(String name, int limit) {
-        int max = (limit > 0 && limit <= 100) ? limit : 50;
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, max);
-        if (name != null && !name.isBlank()) {
-            return dentalRepository.findByNameContainingIgnoreCaseOrderByNameAsc(name, pageable);
-        }
-        return dentalRepository.findAllByOrderByNameAsc(pageable);
-    }
 }

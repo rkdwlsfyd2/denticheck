@@ -1,0 +1,58 @@
+type Hospital {
+  id: ID!
+  name: String!
+  address: String
+  phone: String
+  description: String
+  latitude: Float
+  longitude: Float
+  homepageUrl: String
+  createdAt: String
+  updatedAt: String
+}
+
+type PageInfo {
+  currentPage: Int
+  totalPages: Int
+  totalElements: Int
+}
+
+type DentalPage {
+  content: [Hospital]
+  pageInfo: PageInfo
+}
+
+extend type Query {
+  hospitals: [Hospital]
+  searchHospitals(
+    latitude: Float!
+    longitude: Float!
+    radius: Float = 5.0
+    page: Int = 0
+    size: Int = 10
+  ): DentalPage
+  myFavoriteHospitals: [Hospital]
+}
+
+type Review {
+    id: ID!
+    rating: Int!
+    title: String
+    content: String!
+    isAnonymous: Boolean
+    createdAt: String
+    updatedAt: String
+}
+
+extend type Hospital {
+    reviews: [Review]
+}
+
+extend type Mutation {
+    createReview(
+        dentalId: ID!
+        rating: Int!
+        content: String!
+        tags: [String]
+    ): Review
+}
