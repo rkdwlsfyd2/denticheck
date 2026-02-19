@@ -23,7 +23,7 @@ CREATE TABLE user_hospitals (
     updated_at TIMESTAMP WITHOUT TIME ZONE,
     CONSTRAINT pk_user_hospitals PRIMARY KEY (id),
     CONSTRAINT fk_user_hospitals_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_user_hospitals_hospital FOREIGN KEY (hospital_id) REFERENCES hospitals (id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_hospitals_hospital FOREIGN KEY (hospital_id) REFERENCES dentals (id) ON DELETE CASCADE,
     CONSTRAINT uq_user_hospitals_user_hospital UNIQUE (user_id, hospital_id)
 );
 

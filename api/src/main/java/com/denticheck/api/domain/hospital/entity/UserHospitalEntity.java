@@ -1,6 +1,7 @@
 package com.denticheck.api.domain.hospital.entity;
 
 import com.denticheck.api.common.entity.BaseTimeEntity;
+import com.denticheck.api.domain.dental.entity.DentalEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,7 +25,7 @@ public class UserHospitalEntity extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hospital_id", nullable = false)
-    private HospitalEntity hospital;
+    private DentalEntity dental;
 
     @Column(name = "is_favorite", nullable = false)
     @Builder.Default

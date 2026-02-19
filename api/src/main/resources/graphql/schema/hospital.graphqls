@@ -11,13 +11,7 @@ type Hospital {
   updatedAt: String
 }
 
-type PageInfo {
-  currentPage: Int
-  totalPages: Int
-  totalElements: Int
-}
-
-type DentalPage {
+type HospitalPage {
   content: [Hospital]
   pageInfo: PageInfo
 }
@@ -30,29 +24,10 @@ extend type Query {
     radius: Float = 5.0
     page: Int = 0
     size: Int = 10
-  ): DentalPage
+  ): HospitalPage
   myFavoriteHospitals: [Hospital]
-}
-
-type Review {
-    id: ID!
-    rating: Int!
-    title: String
-    content: String!
-    isAnonymous: Boolean
-    createdAt: String
-    updatedAt: String
 }
 
 extend type Hospital {
     reviews: [Review]
-}
-
-extend type Mutation {
-    createReview(
-        dentalId: ID!
-        rating: Int!
-        content: String!
-        tags: [String]
-    ): Review
 }
