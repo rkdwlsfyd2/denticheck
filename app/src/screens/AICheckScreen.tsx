@@ -75,7 +75,7 @@ function resolvePdfDownloadUrl(rawUrl: string): string {
         // local profile에서 pdfUrl이 19091로 내려와도 에뮬레이터에서는 API 포트(8080)로 맞춰 접근
         if (pdf.pathname.startsWith("/reports/")) {
             pdf.protocol = api.protocol;
-            pdf.hostname = api.hostname;
+            pdf.hostname = "10.0.2.2";
             pdf.port = api.port;
             return pdf.toString();
         }
