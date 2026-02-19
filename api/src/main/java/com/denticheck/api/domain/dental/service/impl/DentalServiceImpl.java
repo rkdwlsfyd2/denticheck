@@ -10,12 +10,15 @@ import com.denticheck.api.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DentalServiceImpl implements DentalService {
 
     private final DentalRepository dentalRepository;
@@ -25,6 +28,11 @@ public class DentalServiceImpl implements DentalService {
     private final com.denticheck.api.domain.dental.repository.DentalVisitRepository dentalVisitRepository;
     private final com.denticheck.api.domain.dental.repository.DentalReviewRepository dentalReviewRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    @PostConstruct
+    public void init() {
+        log.info("DEBUG: DentalServiceImpl initialized. Ready to create reviews.");
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -71,16 +79,21 @@ public class DentalServiceImpl implements DentalService {
     @Override
     @Transactional
     public com.denticheck.api.domain.dental.entity.DentalReviewEntity createReview(java.util.UUID dentalId,
-            String username, int rating, String content, java.util.List<String> tags) {
-        UserEntity user = userRepository.findByUsername(username)
-                .orElseGet(() -> {
-                    if ("anonymous".equals(username)) {
-                        com.denticheck.api.domain.user.entity.RoleEntity userRole = roleRepository.findByName("USER")
+            String username, int rating, String content, java.util.List<String> tags, boolean isAnonymous) {
+        log.info("DEBUG: createReview started. username={}, dentalId={}, isAnonymous={}", username, dentalId,
+                isAnonymous);
+        UserEntity user;
+
+        if ("anonymous".equals(username)) {
+            // Dev Pass / Guest Logic
+            user = userRepository.findByUsername("anonymous")
+                    .orElseGet(() -> {
+                        com.denticheck.api.domain.user.entity.RoleEntity userRole = roleRepository
+                                .findByName("ROLE_USER")
                                 .orElseGet(() -> roleRepository.save(com.denticheck.api.domain.user.entity.RoleEntity
-                                        .builder().name("USER").build()));
+                                        .builder().name("ROLE_USER").build()));
 
                         UserEntity newUser = UserEntity.builder()
-                                .id(java.util.UUID.randomUUID())
                                 .username("anonymous")
                                 .email("anonymous@example.com")
                                 .nickname("익명")
@@ -88,9 +101,13 @@ public class DentalServiceImpl implements DentalService {
                                 .socialProviderType(com.denticheck.api.domain.user.entity.SocialProviderType.GOOGLE) // Mock
                                 .build();
                         return userRepository.save(newUser);
-                    }
-                    throw new IllegalArgumentException("User not found: " + username);
-                });
+                    });
+        } else {
+            // Authenticated User Logic
+            user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        }
+        log.info("DEBUG: User resolved. userId={}", user.getId());
 
         DentalEntity dental = dentalRepository.findById(dentalId)
                 .orElseThrow(() -> new IllegalArgumentException("Dental not found: " + dentalId));
@@ -105,7 +122,12 @@ public class DentalServiceImpl implements DentalService {
                 .status("pending")
                 .verifyMethod("manual")
                 .build();
-        dentalVisitRepository.save(visit);
+        try {
+            visit = dentalVisitRepository.save(visit);
+        } catch (Exception e) {
+            log.error("Failed to save visit", e);
+            throw e;
+        }
 
         // Create Review
         String tagsJson = null;
@@ -113,7 +135,7 @@ public class DentalServiceImpl implements DentalService {
             try {
                 tagsJson = objectMapper.writeValueAsString(tags);
             } catch (Exception e) {
-                // ignore or log
+                log.warn("Failed to serialize tags", e);
             }
         }
 
@@ -126,14 +148,25 @@ public class DentalServiceImpl implements DentalService {
                 .rating((short) rating)
                 .content(content)
                 .tagsJson(tagsJson)
-                .isAnonymous(false)
+                .isAnonymous(isAnonymous)
                 .status("active")
                 .build();
-        dentalReviewRepository.save(review);
+        try {
+            review = dentalReviewRepository.save(review);
+        } catch (Exception e) {
+            log.error("Failed to save review", e);
+            throw e;
+        }
 
         // Update Dental Rating
-        dental.updateRating(rating, dental.getRatingCount(), dental.getRatingAvg());
-        // dentalRepository.save(dental); // dirty checking
+        Integer currentCount = dental.getRatingCount() != null ? dental.getRatingCount() : 0;
+        java.math.BigDecimal currentAvg = dental.getRatingAvg() != null ? dental.getRatingAvg()
+                : java.math.BigDecimal.ZERO;
+
+        dental.updateRating(rating, currentCount, currentAvg);
+        dentalRepository.saveAndFlush(dental);
+
+        log.info("DEBUG: Updated Rating - Count: {}, Avg: {}", dental.getRatingCount(), dental.getRatingAvg());
 
         return review;
     }

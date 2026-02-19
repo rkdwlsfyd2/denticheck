@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.ZonedDateTime;
 import java.util.UUID;
@@ -43,6 +45,7 @@ public class DentalReviewEntity {
     private String content;
 
     @Column(name = "tags_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String tagsJson;
 
     @Column(name = "is_anonymous", nullable = false)

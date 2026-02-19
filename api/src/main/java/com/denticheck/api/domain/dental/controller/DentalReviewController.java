@@ -48,12 +48,15 @@ public class DentalReviewController {
             username = userDetails.getUsername();
         }
 
+        boolean isAnonymous = Boolean.TRUE.equals(request.getIsAnonymous());
+
         DentalReviewEntity review = dentalService.createReview(
                 dentalId,
                 username,
                 request.getRating(),
                 request.getContent(),
-                request.getTags());
+                request.getTags(),
+                isAnonymous);
 
         return ResponseEntity.ok(DentalReviewResponse.from(review, objectMapper));
     }

@@ -78,6 +78,16 @@ public class DentalEntity {
     @Builder.Default
     private Boolean isAffiliate = false;
 
+    // Helper for GraphQL Float mapping (Renamed to avoid conflict)
+    public Double getRatingAvgDouble() {
+        return ratingAvg != null ? ratingAvg.doubleValue() : 0.0;
+    }
+
+    // Helper for GraphQL Int mapping (redundant but safe)
+    public Integer getRatingCountInt() {
+        return ratingCount != null ? ratingCount : 0;
+    }
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -87,12 +97,13 @@ public class DentalEntity {
     private ZonedDateTime updatedAt;
 
     public void updateRating(int newRating, int oldRatingCount, BigDecimal oldRatingAvg) {
-        // Calculate new average
-        // (oldAvg * oldCount + newRating) / (oldCount + 1)
-        BigDecimal total = oldRatingAvg.multiply(BigDecimal.valueOf(oldRatingCount));
+        int count = oldRatingCount;
+        BigDecimal avg = oldRatingAvg != null ? oldRatingAvg : BigDecimal.ZERO;
+
+        BigDecimal total = avg.multiply(BigDecimal.valueOf(count));
         total = total.add(BigDecimal.valueOf(newRating));
 
-        int newCount = oldRatingCount + 1;
+        int newCount = count + 1;
         this.ratingCount = newCount;
         this.ratingAvg = total.divide(BigDecimal.valueOf(newCount), 2, java.math.RoundingMode.HALF_UP);
     }

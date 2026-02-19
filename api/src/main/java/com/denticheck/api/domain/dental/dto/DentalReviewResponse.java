@@ -25,6 +25,7 @@ public class DentalReviewResponse {
     private Integer rating;
     private String content;
     private List<String> tags;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private ZonedDateTime createdAt;
 
     public static DentalReviewResponse from(DentalReviewEntity entity, ObjectMapper objectMapper) {

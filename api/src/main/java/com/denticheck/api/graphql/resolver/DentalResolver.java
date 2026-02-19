@@ -62,7 +62,16 @@ public class DentalResolver {
         return dentalService.getReviews(dental.getId());
     }
 
-    // ...
+    @org.springframework.graphql.data.method.annotation.SchemaMapping(typeName = "Dental", field = "ratingAvg")
+    public Double ratingAvg(DentalEntity dental) {
+        return dental.getRatingAvg() != null ? dental.getRatingAvg().doubleValue() : 0.0;
+    }
+
+    @org.springframework.graphql.data.method.annotation.SchemaMapping(typeName = "Dental", field = "ratingCount")
+    public Integer ratingCount(DentalEntity dental) {
+        return dental.getRatingCount() != null ? dental.getRatingCount() : 0;
+    }
+
     @QueryMapping
     @PreAuthorize("hasRole('USER')")
     public List<DentalEntity> myFavoriteDentals() {

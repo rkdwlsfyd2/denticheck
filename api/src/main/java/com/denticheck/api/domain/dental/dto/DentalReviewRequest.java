@@ -15,4 +15,5 @@ public class DentalReviewRequest {
     private Integer rating;
     private String content;
     private List<String> tags;
+    private Boolean isAnonymous;
 }

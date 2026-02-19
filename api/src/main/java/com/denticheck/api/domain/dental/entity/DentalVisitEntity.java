@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
@@ -42,6 +44,7 @@ public class DentalVisitEntity {
     private String verifyMethod = "manual";
 
     @Column(name = "verify_payload_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String verifyPayloadJson;
 
     @CreationTimestamp

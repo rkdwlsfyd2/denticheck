@@ -7,6 +7,8 @@ type Dental {
   latitude: Float
   longitude: Float
   homepageUrl: String
+  ratingAvg: Float
+  ratingCount: Int
   createdAt: String
   updatedAt: String
 }

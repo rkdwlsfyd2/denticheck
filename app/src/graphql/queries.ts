@@ -11,6 +11,8 @@ export const GET_DENTALS_LIST = gql`
       latitude
       longitude
       homepageUrl
+      ratingAvg
+      ratingCount
     }
   }
 `;
@@ -27,6 +29,8 @@ export const SEARCH_DENTALS = gql`
         latitude
         longitude
         homepageUrl
+        ratingAvg
+        ratingCount
       }
       pageInfo {
         currentPage
@@ -224,6 +228,8 @@ export const GET_DENTALS = gql`
       name
       address
       phone
+      ratingAvg
+      ratingCount
     }
   }
 `;
