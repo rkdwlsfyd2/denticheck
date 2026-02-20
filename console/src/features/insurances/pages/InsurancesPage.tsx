@@ -49,8 +49,8 @@ export function InsurancesPage() {
         name: "",
     });
 
-    const fetchInsurances = () => {
-        setLoading(true);
+    const fetchInsurances = (silent = false) => {
+        if (!silent) setLoading(true);
         const params: any = {};
         if (filter === "category") {
             params.category = keyword;
@@ -63,7 +63,9 @@ export function InsurancesPage() {
                 setInsurances(data.adminInsuranceProducts || []);
             })
             .catch(console.error)
-            .finally(() => setLoading(false));
+            .finally(() => {
+                if (!silent) setLoading(false);
+            });
     };
 
     const handleDeleteClick = (id: string, name: string) => {
@@ -167,11 +169,10 @@ export function InsurancesPage() {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span
-                                                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                                                    insurance.isPartner
-                                                        ? "bg-blue-50 text-blue-600 border-blue-200"
-                                                        : "bg-slate-50 text-slate-400 border-slate-200"
-                                                }`}
+                                                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${insurance.isPartner
+                                                    ? "bg-blue-50 text-blue-600 border-blue-200"
+                                                    : "bg-slate-50 text-slate-400 border-slate-200"
+                                                    }`}
                                             >
                                                 {insurance.isPartner ? t("status_partnered") : t("status_unpartnered")}
                                             </span>
@@ -190,7 +191,7 @@ export function InsurancesPage() {
                                                             `,
                                                                 { id: insurance.id, isPartner: !insurance.isPartner },
                                                             );
-                                                            fetchInsurances();
+                                                            fetchInsurances(true);
                                                         } catch (error) {
                                                             console.error(error);
                                                             showAlert("상태 변경에 실패했습니다.", { title: "오류" });
@@ -228,7 +229,7 @@ export function InsurancesPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => {
-                    fetchInsurances();
+                    fetchInsurances(true);
                     showAlert("보험 상품이 추가되었습니다.", { title: "성공" });
                 }}
             />
@@ -240,7 +241,7 @@ export function InsurancesPage() {
                     setSelectedInsurance(null);
                 }}
                 onSuccess={() => {
-                    fetchInsurances();
+                    fetchInsurances(true);
                 }}
                 insurance={selectedInsurance}
             />

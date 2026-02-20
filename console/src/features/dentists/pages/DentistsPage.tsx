@@ -53,14 +53,16 @@ export function DentistsPage() {
         name: "",
     });
 
-    const fetchDentists = () => {
-        setLoading(true);
+    const fetchDentists = (silent = false) => {
+        if (!silent) setLoading(true);
         graphqlRequest(GET_DENTISTS_QUERY, { keyword, filter })
             .then((data) => {
                 setDentists(data.adminDentists || []);
             })
             .catch(console.error)
-            .finally(() => setLoading(false));
+            .finally(() => {
+                if (!silent) setLoading(false);
+            });
     };
 
     const handleDeleteClick = (id: string, name: string) => {
@@ -159,8 +161,8 @@ export function DentistsPage() {
                                         <td className="px-6 py-4 text-center">
                                             <span
                                                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${dentist.isPartner
-                                                        ? "bg-blue-50 text-blue-600 border-blue-200"
-                                                        : "bg-slate-50 text-slate-400 border-slate-200"
+                                                    ? "bg-blue-50 text-blue-600 border-blue-200"
+                                                    : "bg-slate-50 text-slate-400 border-slate-200"
                                                     }`}
                                             >
                                                 {dentist.isPartner ? t("status_partnered") : t("status_unpartnered")}
@@ -180,7 +182,7 @@ export function DentistsPage() {
                                                             `,
                                                                 { id: dentist.id, isPartner: !dentist.isPartner },
                                                             );
-                                                            fetchDentists();
+                                                            fetchDentists(true);
                                                         } catch (error) {
                                                             console.error(error);
                                                             showAlert("상태 변경에 실패했습니다.", { title: "오류" });
@@ -218,7 +220,7 @@ export function DentistsPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => {
-                    fetchDentists();
+                    fetchDentists(true);
                     showAlert("치과가 추가되었습니다.", { title: "성공" });
                 }}
             />
@@ -230,7 +232,7 @@ export function DentistsPage() {
                     setSelectedDentist(null);
                 }}
                 onSuccess={() => {
-                    fetchDentists();
+                    fetchDentists(true);
                 }}
                 dentist={selectedDentist}
             />
