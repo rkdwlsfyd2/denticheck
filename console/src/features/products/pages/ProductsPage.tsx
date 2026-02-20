@@ -50,8 +50,8 @@ export function ProductsPage() {
         name: "",
     });
 
-    const fetchProducts = () => {
-        setLoading(true);
+    const fetchProducts = (silent = false) => {
+        if (!silent) setLoading(true);
         const params: any = {};
         if (filter === "category") {
             params.category = keyword;
@@ -64,7 +64,9 @@ export function ProductsPage() {
                 setProducts(data.adminProducts || []);
             })
             .catch(console.error)
-            .finally(() => setLoading(false));
+            .finally(() => {
+                if (!silent) setLoading(false);
+            });
     };
 
     const handleDeleteClick = (id: string, name: string) => {
@@ -178,11 +180,10 @@ export function ProductsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span
-                                                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                                                    product.isPartner
-                                                        ? "bg-blue-50 text-blue-600 border-blue-200"
-                                                        : "bg-slate-50 text-slate-400 border-slate-200"
-                                                }`}
+                                                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.isPartner
+                                                    ? "bg-blue-50 text-blue-600 border-blue-200"
+                                                    : "bg-slate-50 text-slate-400 border-slate-200"
+                                                    }`}
                                             >
                                                 {product.isPartner ? t("status_partnered") : t("status_unpartnered")}
                                             </span>
@@ -201,7 +202,7 @@ export function ProductsPage() {
                                                             `,
                                                                 { id: product.id, isPartner: !product.isPartner },
                                                             );
-                                                            fetchProducts();
+                                                            fetchProducts(true);
                                                         } catch (error) {
                                                             console.error(error);
                                                             showAlert("상태 변경에 실패했습니다.", { title: "오류" });
@@ -239,7 +240,7 @@ export function ProductsPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => {
-                    fetchProducts();
+                    fetchProducts(true);
                     showAlert("상품이 추가되었습니다.", { title: "성공" });
                 }}
             />
@@ -251,7 +252,7 @@ export function ProductsPage() {
                     setSelectedProduct(null);
                 }}
                 onSuccess={() => {
-                    fetchProducts();
+                    fetchProducts(true);
                 }}
                 product={selectedProduct}
             />

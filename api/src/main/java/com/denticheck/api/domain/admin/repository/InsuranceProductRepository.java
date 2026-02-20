@@ -8,5 +8,6 @@ import java.util.List;
 
 @Repository
 public interface InsuranceProductRepository extends JpaRepository<InsuranceProduct, Long> {
-    List<InsuranceProduct> findByCategoryContainingOrNameContaining(String category, String name);
+    List<InsuranceProduct> findByCategoryContainingOrNameContainingOrderByCreatedAtDescIdDesc(String category, String name);
+    List<InsuranceProduct> findAllByOrderByCreatedAtDescIdDesc();
 }
