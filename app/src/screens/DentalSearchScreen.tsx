@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Linking, ActivityIndicator, Modal, Pressable, Alert } from 'react-native';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { SEARCH_DENTALS, TOGGLE_DENTAL_LIKE } from '../graphql/queries';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -60,9 +60,70 @@ export default function DentalSearchScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [favorites, setFavorites] = useState<string[]>([]);
 
+    const LOCATION_PRESETS = [
+        { name: 'Seoul Station', latitude: 37.5547, longitude: 126.9707 },
+        { name: 'Gangnam Station', latitude: 37.4979, longitude: 127.0276 },
+        { name: 'Sinsa Station', latitude: 37.5163, longitude: 127.0205 },
+        { name: 'Jamsil Station', latitude: 37.5133, longitude: 127.1001 },
+        { name: 'Hongdae Entrance', latitude: 37.5575, longitude: 126.9245 },
+    ];
+
+    const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
+    const [locationSearchTerm, setLocationSearchTerm] = useState('');
+    const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+    const [locationResults, setLocationResults] = useState<any[]>([]);
+
+    const handleAddressSearch = async () => {
+        if (!locationSearchTerm.trim()) return;
+
+        setIsSearchingLocation(true);
+        setLocationResults([]);
+        try {
+            // Worldwide search (no country restriction)
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationSearchTerm)}&limit=5`,
+                {
+                    headers: {
+                        'User-Agent': 'DentiCheck-App/1.0',
+                    },
+                }
+            );
+            const results = await response.json();
+
+            if (results && results.length > 0) {
+                setLocationResults(results);
+            } else {
+                Alert.alert('No Results', 'Could not find that location. Please try a different address.');
+            }
+        } catch (error) {
+            console.error('Geocoding error:', error);
+            Alert.alert('Error', 'Failed to search for location. Please check your connection.');
+        } finally {
+            setIsSearchingLocation(false);
+        }
+    };
+
+    const onSelectLocation = (loc: any) => {
+        setCurrentLocation({
+            latitude: parseFloat(loc.lat),
+            longitude: parseFloat(loc.lon),
+        });
+        setLocationName(loc.display_name.split(',')[0]);
+        setIsLocationModalVisible(false);
+        setLocationSearchTerm('');
+        setLocationResults([]);
+    };
+
 
 
     const [page, setPage] = useState(0);
+
+    // Default location (Seoul Station)
+    const [currentLocation, setCurrentLocation] = useState({
+        latitude: 37.5547,
+        longitude: 126.9707,
+    });
+    const [locationName, setLocationName] = useState('Seoul Station');
 
     // Get tab param from navigation
     const { tab } = (route.params as { tab?: string }) || {};
@@ -70,50 +131,59 @@ export default function DentalSearchScreen() {
 
     // Update activeTab if params change
     React.useEffect(() => {
-        console.log("DentalSearchScreen tab param:", tab);
         if (tab === 'favorites') {
             setActiveTab('favorites');
         }
     }, [tab]);
 
-    console.log("DentalSearchScreen activeTab:", activeTab);
-
-    // Default location (Seoul Station) for search
-    const defaultLocation = {
-        latitude: 37.5547,
-        longitude: 126.9707,
-    };
-
     const [toggleDentalLike] = useMutation(TOGGLE_DENTAL_LIKE);
 
-    const { data, loading, error, fetchMore } = useQuery<SearchDentalsData, SearchDentalsVars>(SEARCH_DENTALS, {
+    const { data, loading, error, refetch } = useQuery<SearchDentalsData, SearchDentalsVars>(SEARCH_DENTALS, {
         variables: {
-            latitude: defaultLocation.latitude,
-            longitude: defaultLocation.longitude,
-            radius: 20.0, // 20km radius
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            radius: 20.0,
             page: 0,
-            size: 10,
+            size: 20,
         },
     });
 
+    const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371; // km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    };
+
     const dentalsData = React.useMemo(() => data?.searchDentals?.content || [], [data]);
 
-    const dentals: Dental[] = React.useMemo(() => dentalsData.map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        address: d.address || '',
-        ratingAvg: d.ratingAvg || 0,
-        ratingCount: d.ratingCount || 0,
-        latitude: d.latitude,
-        longitude: d.longitude,
-        phone: d.phone,
-        description: d.description,
-        isLiked: d.isLiked || false,
-        distance: '0.0km', // Mock
-        isOpen: true, // Mock
-        openTime: '09:00 - 18:00', // Mock
-        features: [], // Mock
-    })), [dentalsData]);
+    const dentals: Dental[] = React.useMemo(() => dentalsData.map((d: any) => {
+        const dist = d.latitude && d.longitude
+            ? haversineDistance(currentLocation.latitude, currentLocation.longitude, d.latitude, d.longitude)
+            : 0;
+
+        return {
+            id: d.id,
+            name: d.name,
+            address: d.address || '',
+            ratingAvg: d.ratingAvg || 0,
+            ratingCount: d.ratingCount || 0,
+            latitude: d.latitude,
+            longitude: d.longitude,
+            phone: d.phone,
+            description: d.description,
+            isLiked: d.isLiked || false,
+            distance: dist > 0 ? `${dist.toFixed(1)}km` : '0.1km',
+            isOpen: true,
+            openTime: '09:00 - 18:00',
+            features: [],
+        };
+    }), [dentalsData, currentLocation]);
 
     useEffect(() => {
         if (dentals) {
@@ -229,7 +299,11 @@ export default function DentalSearchScreen() {
                         <Phone size={16} color={theme.primary} style={{ marginRight: 4 }} />
                         <Text className="text-primary font-medium">Call</Text>
                     </Button>
-                    <Button size="sm" className="flex-1 bg-blue-600">
+                    <Button
+                        size="sm"
+                        className="flex-1 bg-blue-600"
+                        onPress={() => navigation.navigate('DentalMap', { dentalId: dental.id })}
+                    >
                         <MapPin size={16} color="white" style={{ marginRight: 4 }} />
                         <Text className="text-white font-medium">Directions</Text>
                     </Button>
@@ -245,7 +319,7 @@ export default function DentalSearchScreen() {
                     <View className="flex-row items-center justify-between">
                         <Text className="text-2xl font-extrabold text-slate-800 dark:text-white">Find Clinic</Text>
                         <TouchableOpacity
-                            onPress={() => navigation.navigate('DentalMap')}
+                            onPress={() => navigation.navigate('DentalMap', {})}
                             className="bg-blue-50 p-2 rounded-full"
                         >
                             <MapPinned size={24} color={theme.primary} />
@@ -283,15 +357,22 @@ export default function DentalSearchScreen() {
 
                 <TabsContent value="all" className="flex-1">
                     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
-                        <Card className="p-4 bg-blue-50 border-blue-200 mb-4">
+                        <Card className="p-4 bg-blue-50 border-blue-200 mb-6">
                             <View className="flex-row items-center gap-3">
-                                <MapPin size={20} color="#2563eb" />
-                                <View className="flex-1">
-                                    <Text className="font-medium text-sm text-foreground">Current Location</Text>
-                                    <Text className="text-xs text-muted-foreground">Gangnam-gu, Seoul</Text>
+                                <View className="bg-blue-100 p-2 rounded-full">
+                                    <MapPin size={20} color="#2563eb" />
                                 </View>
-                                <Button size="sm" variant="outline" className="bg-white h-8">
-                                    <Text className="text-xs text-foreground">Change</Text>
+                                <View className="flex-1">
+                                    <Text className="font-semibold text-sm text-slate-900">Current Search Location</Text>
+                                    <Text className="text-xs text-slate-500 mt-0.5">{locationName}</Text>
+                                </View>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="bg-white h-9 px-4 border-blue-200"
+                                    onPress={() => setIsLocationModalVisible(true)}
+                                >
+                                    <Text className="text-xs text-blue-600 font-bold">Change</Text>
                                 </Button>
                             </View>
                         </Card>
@@ -325,6 +406,117 @@ export default function DentalSearchScreen() {
                     </ScrollView>
                 </TabsContent>
             </Tabs>
+            <Modal
+                visible={isLocationModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setIsLocationModalVisible(false)}
+            >
+                <Pressable
+                    className="flex-1 bg-black/50 justify-center items-center px-6"
+                    onPress={() => setIsLocationModalVisible(false)}
+                >
+                    <View className="bg-white w-full rounded-3xl p-6 shadow-xl" onStartShouldSetResponder={() => true}>
+                        <View className="flex-row items-center justify-between mb-4">
+                            <Text className="text-xl font-bold text-slate-800">Change Location</Text>
+                            <TouchableOpacity onPress={() => setIsLocationModalVisible(false)}>
+                                <Text className="text-slate-400 font-bold">✕</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Search Input */}
+                        <View className="mb-6">
+                            <Text className="text-sm font-semibold text-slate-600 mb-2">Search Address</Text>
+                            <View className="flex-row gap-2">
+                                <View className="flex-1 relative justify-center">
+                                    <View className="absolute left-3 z-10">
+                                        <Search size={18} color="#94a3b8" />
+                                    </View>
+                                    <TextInput
+                                        placeholder="E.g. Gangnam-daero, Seoul"
+                                        value={locationSearchTerm}
+                                        onChangeText={setLocationSearchTerm}
+                                        className="bg-slate-50 border border-slate-200 pl-10 h-12 rounded-xl text-slate-900"
+                                        onSubmitEditing={handleAddressSearch}
+                                        returnKeyType="search"
+                                    />
+                                </View>
+                                <TouchableOpacity
+                                    onPress={handleAddressSearch}
+                                    disabled={isSearchingLocation}
+                                    className="bg-blue-600 w-12 h-12 rounded-xl items-center justify-center shadow-sm"
+                                >
+                                    {isSearchingLocation ? (
+                                        <ActivityIndicator size="small" color="white" />
+                                    ) : (
+                                        <Search size={20} color="white" />
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* Search Results */}
+                        {locationResults.length > 0 && (
+                            <View className="mb-6 max-h-60">
+                                <Text className="text-sm font-semibold text-slate-600 mb-2">Search Results</Text>
+                                <ScrollView showsVerticalScrollIndicator={true} className="border border-blue-100 rounded-xl bg-blue-50/30">
+                                    {locationResults.map((loc, idx) => (
+                                        <TouchableOpacity
+                                            key={idx}
+                                            onPress={() => onSelectLocation(loc)}
+                                            className={`p-4 flex-row items-center gap-3 ${idx < locationResults.length - 1 ? 'border-b border-blue-50' : ''}`}
+                                        >
+                                            <MapPin size={16} color="#3b82f6" />
+                                            <View className="flex-1">
+                                                <Text className="text-sm font-medium text-slate-900" numberOfLines={1}>
+                                                    {loc.display_name.split(',')[0]}
+                                                </Text>
+                                                <Text className="text-xs text-slate-500" numberOfLines={2}>
+                                                    {loc.display_name}
+                                                </Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                                <TouchableOpacity
+                                    onPress={() => setLocationResults([])}
+                                    className="mt-2 self-end"
+                                >
+                                    <Text className="text-xs text-blue-600 font-bold">Clear Results</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        <Text className="text-sm font-semibold text-slate-600 mb-2">Popular Areas</Text>
+                        <View className="gap-2">
+                            {LOCATION_PRESETS.map((loc) => (
+                                <TouchableOpacity
+                                    key={loc.name}
+                                    className={`p-4 rounded-xl flex-row items-center justify-between ${locationName === loc.name ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50'
+                                        }`}
+                                    onPress={() => {
+                                        setCurrentLocation({ latitude: loc.latitude, longitude: loc.longitude });
+                                        setLocationName(loc.name);
+                                        setIsLocationModalVisible(false);
+                                        setLocationSearchTerm('');
+                                        setLocationResults([]);
+                                    }}
+                                >
+                                    <View className="flex-row items-center gap-3">
+                                        <MapPin size={18} color={locationName === loc.name ? '#2563eb' : '#64748b'} />
+                                        <Text className={`font-medium ${locationName === loc.name ? 'text-blue-700' : 'text-slate-700'}`}>
+                                            {loc.name}
+                                        </Text>
+                                    </View>
+                                    {locationName === loc.name && (
+                                        <View className="w-2 h-2 rounded-full bg-blue-600" />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </Pressable>
+            </Modal>
         </View>
     );
 }

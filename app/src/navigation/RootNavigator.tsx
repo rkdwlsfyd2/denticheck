@@ -32,7 +32,7 @@ export type RootStackParamList = {
   Survey: undefined;
   ThemeSelector: undefined;
   DentalSearch: { tab?: string };
-  DentalMap: undefined;
+  DentalMap: { dentalId?: string };
   RecommendedProducts: undefined;
   InsuranceProducts: undefined;
   DentalDetail: { dental: any };

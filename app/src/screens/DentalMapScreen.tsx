@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect, useRef } from 'react'; // Added useEffect and useRef
 import { View, Text, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { useQuery } from '@apollo/client/react';
 import { SEARCH_DENTALS } from '../graphql/queries';
 import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { ChevronLeft, List } from 'lucide-react-native';
@@ -46,8 +46,12 @@ interface SearchDentalsVars {
 
 export default function DentalMapScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+    const route = useRoute();
     const { theme } = useColorTheme();
     const [selectedDentalId, setSelectedDentalId] = useState<string | null>(null);
+    const markerRefs = useRef<{ [key: string]: any }>({});
+
+    const { dentalId } = (route.params as { dentalId?: string }) || {};
 
     // Default location: Seoul Station (matching DentalSearchScreen)
     const [region, setRegion] = useState({
@@ -94,6 +98,29 @@ export default function DentalMapScreen() {
         }));
 
     const selectedDental = dentals.find(h => h.id === selectedDentalId);
+
+    // Initial focus on dentalId if provided
+    useEffect(() => {
+        if (dentalId && dentals.length > 0) {
+            const target = dentals.find(d => d.id === dentalId);
+            if (target) {
+                setSelectedDentalId(dentalId);
+                setRegion({
+                    latitude: target.latitude,
+                    longitude: target.longitude,
+                    latitudeDelta: 0.005,
+                    longitudeDelta: 0.005,
+                });
+
+                // Show callout after a small delay to ensure marker is rendered
+                setTimeout(() => {
+                    if (markerRefs.current[dentalId]) {
+                        markerRefs.current[dentalId].showCallout();
+                    }
+                }, 500);
+            }
+        }
+    }, [dentalId, dentals.length]);
 
     const onRegionChangeComplete = (newRegion: any) => {
         // Only update if coordinates changed significantly to avoid infinite loops
@@ -154,6 +181,7 @@ export default function DentalMapScreen() {
             >
                 {dentals.map((dental) => (
                     <Marker
+                        ref={(ref) => { markerRefs.current[dental.id] = ref; }}
                         key={dental.id}
                         coordinate={{ latitude: dental.latitude, longitude: dental.longitude }}
                         title={dental.name}
