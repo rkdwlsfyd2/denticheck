@@ -10,32 +10,43 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import com.denticheck.api.common.exception.auth.AuthErrorCode;
+import com.denticheck.api.common.exception.auth.AuthException;
+import java.time.Duration;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class JwtServiceImpl implements JwtService {
 
     private final RefreshRepository refreshRepository;
     private final JWTUtil jwtUtil;
 
-    @Value("${admin.web.refresh-cookie-max-age-seconds}")
-    int refreshCookieMaxAgeSeconds;
+    @Value("${admin.web.refresh-cookie-max-age}")
+    Duration refreshCookieMaxAge;
 
     @Value("${admin.web.refresh-cookie-secure}")
     boolean refreshCookieSecure;
+
+    @Value("${admin.web.refresh-cookie-httponly}")
+    boolean refreshCookieHttpOnly;
 
     // 소셜 로그인 성공 후 쿠키(Refresh) -> 헤더 방식으로 응답
     @Transactional
     @Override
     public JWTResponseDTO cookie2Header(HttpServletRequest request, HttpServletResponse response) {
+        log.debug("cookie2Header() 실행");
 
         // 쿠키 리스트에서 Refresh 쿠키 확인
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
-            throw new RuntimeException("쿠키가 존재하지 않습니다.");
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         // Refresh 토큰 획득
@@ -48,21 +59,27 @@ public class JwtServiceImpl implements JwtService {
         }
 
         if (refreshToken == null) {
-            throw new RuntimeException("refreshToken 쿠키가 없습니다.");
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         // Refresh 토큰 검증
         if (!jwtUtil.isValid(refreshToken, false)) {
-            throw new RuntimeException("유효하지 않은 refreshToken입니다.");
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         if (!existRefresh(refreshToken)) {
-            throw new RuntimeException("만료(폐기)된 refreshToken입니다. 다시 로그인 해주세요.");
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         // 정보 추출
         String username = jwtUtil.getUsername(refreshToken);
         String role = jwtUtil.getRole(refreshToken);
+
+        // 관리자 콘솔 접근 권한 실시간 검증 (ROLE_ADMIN 필수)
+        if (!"ROLE_ADMIN".equals(role)) {
+            log.warn("Access Denied for non-admin user in cookie exchange: {} (Role: {})", username, role);
+            throw new RuntimeException("관리자 권한이 없습니다."); // 403 Forbidden 권장 (추후 개선)
+        }
 
         // 토큰 생성
         String newAccessToken = jwtUtil.createAccessJWT(username, role);
@@ -76,36 +93,34 @@ public class JwtServiceImpl implements JwtService {
                 .refresh(newRefreshToken)
                 .build());
 
-        // 기존 쿠키 제거
-        Cookie refreshCookie = new Cookie("refreshToken", null);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(refreshCookieSecure);
-        refreshCookie.setPath("/");
-        refreshCookie.setMaxAge(refreshCookieMaxAgeSeconds);
-        response.addCookie(refreshCookie);
+        // 새 쿠키 설정 (HttpOnly)
+        response.addCookie(createRefreshCookie(newRefreshToken));
 
-        return new JWTResponseDTO(newAccessToken, newRefreshToken);
+        return new JWTResponseDTO(newAccessToken, newRefreshToken, null);
     }
 
     // Refresh 토큰으로 Access 토큰 재발급 로직 (Rotate 포함)
     @Transactional
     @Override
-    public JWTResponseDTO refreshRotate(RefreshRequestDTO dto) {
+    public JWTResponseDTO refreshRotate(RefreshRequestDTO dto, HttpServletResponse response) {
+        log.debug("refreshRotate() 실행");
 
         String refreshToken = dto.getRefreshToken();
 
         // Refresh 토큰 검증
-        if (!jwtUtil.isValid(refreshToken, false)) {
-            throw new RuntimeException("유효하지 않은 refreshToken입니다.");
+        if (refreshToken == null || !jwtUtil.isValid(refreshToken, false)) {
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         if (!existRefresh(refreshToken)) {
-            throw new RuntimeException("만료(폐기)된 refreshToken입니다. 다시 로그인 해주세요.");
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
 
         // 정보 추출
         String username = jwtUtil.getUsername(refreshToken);
         String role = jwtUtil.getRole(refreshToken);
+
+        log.info("Token Rotated for user: {} (Role: {})", username, role);
 
         // 토큰 생성
         String newAccessToken = jwtUtil.createAccessJWT(username, role);
@@ -118,13 +133,52 @@ public class JwtServiceImpl implements JwtService {
                 .refresh(newRefreshToken)
                 .build());
 
-        return new JWTResponseDTO(newAccessToken, newRefreshToken);
+        // 새 쿠키 설정 (HttpOnly)
+        response.addCookie(createRefreshCookie(newRefreshToken));
+
+        return new JWTResponseDTO(newAccessToken, newRefreshToken, null);
+    }
+
+    private Cookie createRefreshCookie(String token) {
+        Cookie cookie = new Cookie("refreshToken", token);
+        cookie.setHttpOnly(refreshCookieHttpOnly);
+        cookie.setSecure(refreshCookieSecure);
+        cookie.setPath("/");
+        cookie.setMaxAge(Math.toIntExact(refreshCookieMaxAge.toSeconds()));
+        // Note: SameSite header might need specialized handling if sticking to standard
+        // javax/jakarta Cookie
+        // but for now we follow the existing pattern.
+        return cookie;
+    }
+
+    @Transactional
+    @Override
+    public JWTResponseDTO devLogin(HttpServletResponse response) {
+        log.info("Development login requested");
+
+        String username = "dev-admin";
+        String role = "ROLE_ADMIN";
+
+        String accessToken = jwtUtil.createAccessJWT(username, role);
+        String refreshToken = jwtUtil.createRefreshJWT(username, role);
+
+        // Refresh 토큰 DB 저장
+        addRefresh(username, refreshToken);
+
+        // 쿠키 설정
+        response.addCookie(createRefreshCookie(refreshToken));
+
+        return new JWTResponseDTO(accessToken, refreshToken, null);
     }
 
     // JWT Refresh 토큰 발급 후 저장 메소드
     @Transactional
     @Override
     public void addRefresh(String username, String refreshToken) {
+        log.debug("addRefresh() 실행");
+        // 단일 세션(계정당 기기 1개) 허용을 위해 기존 토큰 모두 삭제
+        removeRefreshUser(username);
+
         refreshRepository.save(RefreshEntity.builder()
                 .username(username)
                 .refresh(refreshToken)
@@ -135,6 +189,7 @@ public class JwtServiceImpl implements JwtService {
     @Transactional(readOnly = true)
     @Override
     public Boolean existRefresh(String refreshToken) {
+        log.debug("existRefresh() 실행");
         return refreshRepository.existsByRefresh(refreshToken);
     }
 
@@ -142,15 +197,17 @@ public class JwtServiceImpl implements JwtService {
     @Transactional
     @Override
     public void removeRefresh(String refreshToken) {
+        log.debug("removeRefresh() 실행");
         int deleted = refreshRepository.deleteByRefresh(refreshToken);
         if (deleted == 0) {
-            throw new RuntimeException("refreshToken이 DB에 없습니다. 재사용/탈취 가능성");
+            log.warn("DB에 존재하지 않는 refreshToken 삭제 시도. 이미 삭제되었거나 DB가 초기화되었을 가능성이 있습니다.");
         }
     }
 
     // 특정 유저 Refresh 토큰 모두 삭제 (탈퇴)
     @Override
     public void removeRefreshUser(String username) {
+        log.debug("removeRefreshUser() 실행");
         refreshRepository.deleteByUsername(username);
     }
 }

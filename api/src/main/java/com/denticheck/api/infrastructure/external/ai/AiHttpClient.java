@@ -1,10 +1,14 @@
 package com.denticheck.api.infrastructure.external.ai;
 
+import com.denticheck.api.infrastructure.external.ai.dto.AiChatAskRequest;
+import com.denticheck.api.infrastructure.external.ai.dto.AiChatAskResponse;
+// import com.denticheck.api.infrastructure.external.ai.dto.AiChatAskResponse;
 import com.denticheck.api.infrastructure.external.ai.dto.AiQualityRequest;
 import com.denticheck.api.infrastructure.external.ai.dto.AiQualityResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -20,12 +24,27 @@ public class AiHttpClient implements AiClient {
 
     @Override
     public AiQualityResponse checkQuality(AiQualityRequest request) {
-        log.info("Calling AI service checkQuality with storageKey: {}", request.getStorageKey());
+        log.debug("checkQuality() 실행");
+        log.info("AI 서비스의 checkQuality를 호출합니다. storageKey: {}", request.getStorageKey());
         return restClient.post()
                 .uri("/v1/quality")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
                 .body(AiQualityResponse.class);
+    }
+
+    @Override
+    public String askChat(AiChatAskRequest request) {
+        log.debug("askChat() 실행");
+        ResponseEntity<AiChatAskResponse> entity = restClient.post()
+                .uri("/v1/chat/ask")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .toEntity(AiChatAskResponse.class);
+
+        return entity.getBody() != null ? entity.getBody().getAnswer() : null;
     }
 }

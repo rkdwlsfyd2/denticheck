@@ -1,33 +1,29 @@
 package com.denticheck.api.domain.chatbot.service.impl;
 
-import com.denticheck.api.domain.ai_check.entity.AiReportEntity;
-import com.denticheck.api.domain.ai_check.repository.AiReportRepository;
 import com.denticheck.api.domain.chatbot.entity.AiChatMessageEntity;
 import com.denticheck.api.domain.chatbot.entity.ChatSessionEntity;
 import com.denticheck.api.domain.chatbot.repository.AiChatMessageRepository;
 import com.denticheck.api.domain.chatbot.repository.ChatSessionRepository;
 import com.denticheck.api.domain.chatbot.service.ChatService;
+import com.denticheck.api.domain.chatbot.dto.ChatAppRequest;
+import com.denticheck.api.domain.chatbot.dto.ChatAppResponse;
+import com.denticheck.api.domain.chatbot.entity.ChatMessageType;
 import com.denticheck.api.domain.user.entity.UserEntity;
 import com.denticheck.api.domain.user.repository.UserRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.denticheck.api.infrastructure.external.ai.AiClient;
+import com.denticheck.api.infrastructure.external.ai.dto.AiChatAskRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import com.denticheck.api.domain.chatbot.entity.ChatRole;
+import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.common.exception.user.UserErrorCode;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -37,163 +33,130 @@ public class ChatServiceImpl implements ChatService {
     private final ChatSessionRepository chatSessionRepository;
     private final AiChatMessageRepository aiChatMessageRepository;
     private final UserRepository userRepository;
-    private final AiReportRepository aiReportRepository;
-    private final ObjectMapper objectMapper;
-
-    // Session ID -> SseEmitter Map
-    private final Map<UUID, SseEmitter> emitters = new ConcurrentHashMap<>();
-
-    private static final String AI_CHAT_URL = "http://localhost:8000/v1/chat/ask";
-    private static final String AI_REPORT_URL = "http://localhost:8000/v1/report/generate";
+    private final AiClient aiClient;
 
     @Override
     @Transactional
     public ChatSessionEntity startSession(UUID userId, String channel) {
+        log.debug("startSession() 실행");
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        return getOrCreateActiveSession(user, channel);
+    }
 
-        ChatSessionEntity session = ChatSessionEntity.builder()
-                .user(user)
-                .channel(channel)
-                .build();
-
-        return chatSessionRepository.save(session);
+    private ChatSessionEntity getOrCreateActiveSession(UserEntity user, String channel) {
+        return chatSessionRepository.findByUserIdAndChannelAndEndedAtIsNull(user.getId(), channel)
+                .orElseGet(() -> {
+                    log.info("새 채팅 세션을 시작합니다. 사용자: {}, 채널: {}", user.getId(), channel);
+                    ChatSessionEntity session = ChatSessionEntity.builder()
+                            .user(user)
+                            .channel(channel)
+                            .build();
+                    return chatSessionRepository.save(session);
+                });
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<AiChatMessageEntity> getChatHistory(UUID sessionId) {
+        log.debug("getChatHistory() 실행");
         return aiChatMessageRepository.findAllBySessionIdOrderByCreatedAtAsc(sessionId);
     }
 
     @Override
-    public SseEmitter subscribe(UUID sessionId) {
-        SseEmitter emitter = new SseEmitter(60 * 60 * 1000L); // 1 hour timeout
-        emitters.put(sessionId, emitter);
+    @Transactional
+    public ChatAppResponse processMessage(ChatAppRequest request, UUID userId, String channel) {
+        log.debug("processMessage() 실행");
+        String content = request.getContent();
+        ChatMessageType messageType = request.getMessageType() != null ? request.getMessageType()
+                : ChatMessageType.TEXT;
+        Map<String, Object> payload = request.getPayload();
 
-        emitter.onCompletion(() -> emitters.remove(sessionId));
-        emitter.onTimeout(() -> emitters.remove(sessionId));
-        emitter.onError((e) -> emitters.remove(sessionId));
+        if (content == null || content.trim().isEmpty()) {
+            content = "Please provide a valid message.";
+        } else {
+            content = content.trim();
+        }
 
-        return emitter;
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+
+        ChatSessionEntity session = getOrCreateActiveSession(user, channel);
+
+        // 1. 사용자 메시지 저장
+        AiChatMessageEntity userMessage = AiChatMessageEntity.builder()
+                .session(session)
+                .role(ChatRole.USER)
+                .content(content)
+                .messageType(messageType)
+                .payload(payload)
+                .language("en")
+                .build();
+        aiChatMessageRepository.save(userMessage);
+
+        // 세션 메타데이터 업데이트
+        session.touchLastMessage(preview(content));
+
+        // 2. AI 서버 호출
+        String aiContent;
+        try {
+            String rawResponse = aiClient.askChat(AiChatAskRequest.builder()
+                    .content(content)
+                    .language("en")
+                    .build());
+
+            // Null 또는 빈 문자열인 경우 기본 메시지 할당
+            if (rawResponse == null || rawResponse.trim().isEmpty()) {
+                log.warn("AI 서버로부터 빈 응답을 받았습니다. sessionId: {}", session.getId());
+                aiContent = "I could not generate a response. Could you ask with a bit more detail?";
+            } else {
+                aiContent = rawResponse;
+            }
+        } catch (Exception e) {
+            log.error("AI 서버 호출 중 오류가 발생했습니다: {}", e.getMessage());
+            aiContent = "Sorry, the AI service is temporarily unavailable. Please try again shortly.";
+        }
+
+        ChatMessageType aiMessageType = ChatMessageType.TEXT;
+        Map<String, Object> aiPayload = null;
+
+        // 3. 챗봇 응답 메시지 저장
+        AiChatMessageEntity aiMessage = AiChatMessageEntity.builder()
+                .session(session)
+                .role(ChatRole.ASSISTANT)
+                .content(aiContent)
+                .messageType(aiMessageType)
+                .payload(aiPayload)
+                .language("en")
+                .build();
+        AiChatMessageEntity savedAiMessage = aiChatMessageRepository.save(aiMessage);
+
+        session.touchLastMessage(preview(aiContent));
+
+        return ChatAppResponse.builder()
+                .sessionId(session.getId())
+                .userMessageId(userMessage.getId())
+                .assistantMessageId(savedAiMessage.getId())
+                .assistantContent(savedAiMessage.getContent())
+                .messageType(savedAiMessage.getMessageType())
+                .payload(savedAiMessage.getPayload())
+                .build();
     }
 
     @Override
     @Transactional
-    public AiChatMessageEntity processMessage(UUID sessionId, String content, String language) {
-        ChatSessionEntity session = chatSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("Session not found"));
-
-        // 1. Save User Message
-        AiChatMessageEntity userMessage = AiChatMessageEntity.builder()
-                .session(session)
-                .role("user")
-                .content(content)
-                .language(language)
-                .build();
-        aiChatMessageRepository.save(userMessage);
-
-        // 2. Call AI Server
-        String aiResponseJson = callAiServer(sessionId, content, language);
-
-        // 3. Parse AI Response
-        String aiContent;
-        String citation = null;
-        try {
-            JsonNode root = objectMapper.readTree(aiResponseJson);
-            // Assuming simplified response structure for now, adjust based on actual AI
-            // server response
-            // Example: { "content": "Hello", "citation": {...}, "report": {...} }
-            if (root.has("choices") && root.get("choices").isArray()) {
-                // OpenAI Format
-                aiContent = root.get("choices").get(0).get("message").get("content").asText();
-            } else {
-                // Custom Format
-                aiContent = root.path("content").asText();
-                if (root.has("citation")) {
-                    JsonNode citationNode = root.get("citation");
-                    if (citationNode != null && !citationNode.isNull()) {
-                        citation = objectMapper.writeValueAsString(citationNode);
-                    }
-                }
-                // Handle AI Report if present
-                if (root.has("report")) {
-                    saveAiReport(session, root.get("report"), language);
-                }
-            }
-        } catch (JsonProcessingException e) {
-            log.error("Failed to parse AI response", e);
-            aiContent = "Error processing AI response.";
-        }
-
-        // 4. Save Assistant Message
-        AiChatMessageEntity aiMessage = AiChatMessageEntity.builder()
-                .session(session)
-                .role("assistant")
-                .content(aiContent)
-                .language(language)
-                .citation(citation)
-                .build();
-        AiChatMessageEntity savedAiMessage = aiChatMessageRepository.save(aiMessage);
-
-        // 5. Push to SSE
-        SseEmitter emitter = emitters.get(sessionId);
-        if (emitter != null) {
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("message")
-                        .data(savedAiMessage));
-            } catch (IOException e) {
-                emitters.remove(sessionId);
-            }
-        }
-
-        return savedAiMessage;
+    public void endSession(UUID userId, String channel) {
+        log.debug("endSession() 실행");
+        chatSessionRepository.findByUserIdAndChannelAndEndedAtIsNull(userId, channel)
+                .ifPresent(session -> {
+                    log.info("채팅 세션을 종료합니다: {}", session.getId());
+                    session.endSession();
+                });
     }
 
-    private String callAiServer(UUID sessionId, String content, String language) {
-        RestTemplate restTemplate = new RestTemplate();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        // Construct request body
-        // Adjust this structure to match what the Python AI server expects
-        Map<String, Object> requestBody = Map.of(
-                "session_id", sessionId.toString(),
-                "message", content,
-                "language", language != null ? language : "ko");
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(AI_CHAT_URL, entity, String.class);
-            return response.getBody();
-        } catch (Exception e) {
-            log.error("Error calling AI server", e);
-            throw new RuntimeException("AI Server Error");
-        }
-    }
-
-    private void saveAiReport(ChatSessionEntity session, JsonNode reportNode, String language) {
-        String summary = reportNode.path("summary").asText();
-        String routineGuide = reportNode.path("routine_guide").asText();
-        String warnings = reportNode.path("warnings").asText();
-        String disclaimerVersion = reportNode.path("disclaimer_version").asText();
-
-        AiReportEntity report = AiReportEntity.builder()
-                .session(session)
-                .summary(summary)
-                .routineGuide(routineGuide)
-                .warnings(warnings)
-                .disclaimerVersion(disclaimerVersion)
-                .language(language)
-                .build();
-
-        // Check if report already exists for session (shouldn't for new chat, but for
-        // safety)
-        aiReportRepository.findBySessionId(session.getId())
-                .ifPresent(existing -> aiReportRepository.delete(existing));
-
-        aiReportRepository.save(report);
+    private String preview(String content) {
+        if (content == null)
+            return "Picture/Card";
+        return content.length() <= 30 ? content : content.substring(0, 30) + "...";
     }
 }

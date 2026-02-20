@@ -1,23 +1,40 @@
 spring:
-  profiles:
-    active: local
-    include: oauth
-  graphql:
-    graphiql:
-      enabled: true
-    schema:
-      printer:
-        enabled: true
+    profiles:
+        active: local
+        include: oauth, secret
+    servlet:
+        multipart:
+            max-file-size: 10MB
+            max-request-size: 10MB
+    graphql:
+        graphiql:
+            enabled: true
+        schema:
+            printer:
+                enabled: true
+# 게시글 이미지 업로드 (로컬 저장 후 URL 반환)
+upload:
+    storage:
+        local-dir: ${UPLOAD_LOCAL_DIR:./uploads/community}
+        base-url: ${UPLOAD_BASE_URL:http://localhost:8080/uploads/community}
+
 jwt:
-  secret-key: himynameiskimjihunmyyoutubechann
-  # 1시간 (ms)
-  accessTokenExpiresIn: 3600000
-  # 7일 (ms)
-  refreshTokenExpiresIn: 604800000
+    secret-key: himynameiskimjihunmyyoutubechann
+    accessTokenExpiresIn: 1h
+    refreshTokenExpiresIn: 30d
+    enable-development-tokens: false
 
 logging:
-  level:
-    root: INFO
-    com.denticheck.api: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+    level:
+        root: INFO
+        com.denticheck.api: DEBUG
+        # org.hibernate.SQL: DEBUG
+    # pattern:
+    #     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level ${PID:-} --- [%thread] %logger{36} : %msg%n"
+
+springdoc:
+    api-docs:
+        path: /docs/api-docs
+    swagger-ui:
+        path: /docs/swagger-ui
+        disable-swagger-default-url: true

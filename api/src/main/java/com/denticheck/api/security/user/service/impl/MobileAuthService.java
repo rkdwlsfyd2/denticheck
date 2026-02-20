@@ -11,42 +11,68 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import com.denticheck.api.common.exception.user.UserErrorCode;
+import com.denticheck.api.common.exception.user.UserException;
+import com.denticheck.api.domain.user.entity.UserStatusType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
+import com.denticheck.api.domain.user.dto.UserResponseDTO;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class MobileAuthService {
 
-    private final MobileIdTokenVerifierService googleVerifier;
-    private final UserServiceImpl userServiceImpl; // 너 프로젝트 유저 생성/조회 로직
-    private final JwtServiceImpl jwtServiceImpl; // refresh 저장/삭제
-    private final JWTUtil jwtUtil; // access/refresh 생성
+        private final MobileIdTokenVerifierService googleVerifier;
+        private final UserServiceImpl userServiceImpl;
+        private final JwtServiceImpl jwtServiceImpl;
+        private final JWTUtil jwtUtil;
 
-    @Transactional
-    public JWTResponseDTO googleLogin(String idToken) {
+        @Transactional
+        public JWTResponseDTO googleLogin(String idToken) {
+                log.debug("googleLogin() 실행");
 
-        Jwt jwt = googleVerifier.verify(idToken);
+                Jwt jwt = googleVerifier.verify(idToken);
 
-        // Google 표준 claim
-        String providerId = jwt.getSubject();
-        String email = jwt.getClaimAsString("email");
-        String nickname = jwt.getClaimAsString("name");
+                // Google 표준 claim
+                String providerId = jwt.getSubject();
+                String email = jwt.getClaimAsString("email");
+                String nickname = jwt.getClaimAsString("name");
+                String picture = jwt.getClaimAsString("picture");
 
-        // 유저 조회/생성 (공통 로직 사용)
-        UserEntity user = userServiceImpl.getOrCreateUser(
-                SocialProviderType.GOOGLE,
-                providerId,
-                email,
-                nickname);
+                // 유저 조회/생성 (공통 로직 사용)
+                UserEntity user = userServiceImpl.getOrCreateUser(
+                                SocialProviderType.GOOGLE,
+                                providerId,
+                                email,
+                                nickname,
+                                picture);
 
-        String roleName = user.getRole() != null ? user.getRole().getName() : "USER";
-        String role = "ROLE_" + roleName;
+                if (user.getUserStatusType() != UserStatusType.ACTIVE) {
+                        if (user.getUserStatusType() == UserStatusType.SUSPENDED) {
+                                throw new UserException(UserErrorCode.USER_SUSPENDED);
+                        } else if (user.getUserStatusType() == UserStatusType.DORMANT) {
+                                throw new UserException(UserErrorCode.USER_DORMANT);
+                        } else if (user.getUserStatusType() == UserStatusType.WITHDRAWN) {
+                                throw new UserException(UserErrorCode.USER_WITHDRAWN);
+                        } else {
+                                throw new UserException(UserErrorCode.USER_NOT_ACTIVE);
+                        }
+                }
 
-        String accessToken = jwtUtil.createAccessJWT(user.getUsername(), role);
-        String refreshToken = jwtUtil.createRefreshJWT(user.getUsername(), role);
+                String roleName = user.getRole() != null ? user.getRole().getName() : "USER";
+                String role = "ROLE_" + roleName;
 
-        jwtServiceImpl.addRefresh(user.getUsername(), refreshToken);
+                String accessToken = jwtUtil.createAccessJWT(user.getUsername(), role);
+                String refreshToken = jwtUtil.createRefreshJWT(user.getUsername(), role);
 
-        return new JWTResponseDTO(accessToken, refreshToken);
-    }
+                jwtServiceImpl.addRefresh(user.getUsername(), refreshToken);
+
+                return new JWTResponseDTO(accessToken, refreshToken,
+                                UserResponseDTO.builder()
+                                                .nickname(user.getNickname())
+                                                .email(user.getEmail())
+                                                .profileImage(user.getProfileImage())
+                                                .build());
+        }
 }

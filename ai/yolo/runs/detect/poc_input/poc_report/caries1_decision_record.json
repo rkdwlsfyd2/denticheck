@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "session_id": "local-poc",
+    "generated_at": "2026-02-10T16:26:14",
+    "template_version": "poc_reportlab_v1"
+  },
+  "decision": {
+    "meta": {
+      "session_id": "local-poc",
+      "captured_at": null,
+      "model_versions": {
+        "yolo": "best.pt"
+      }
+    },
+    "yolo": {
+      "summary": {
+        "caries": {
+          "present": false,
+          "count": 0,
+          "max_score": 0.0,
+          "area_ratio": 0.0
+        },
+        "tartar": {
+          "present": false,
+          "count": 0,
+          "max_score": 0.0,
+          "area_ratio": 0.0
+        },
+        "oral_cancer": {
+          "present": false,
+          "count": 0,
+          "max_score": 0.0,
+          "area_ratio": 0.0
+        },
+        "normal": {
+          "present": false,
+          "count": 0,
+          "max_score": 0.0,
+          "area_ratio": 0.0
+        }
+      },
+      "detections": []
+    },
+    "ml": {},
+    "overall": {
+      "level": "GREEN",
+      "reasons": [
+        "no_findings"
+      ]
+    }
+  },
+  "nlg": {
+    "summary": "특이 소견이 뚜렷하지 않아 현재 상태를 유지하는 관리가 권장됩니다",
+    "details": "1. 관찰 요약\n- 탐지된 항목이 없습니다(정상일 수 있으며, 촬영 조건에 따라 달라질 수 있습니다).\n\n2. 권고(행동)\n- 현재의 양치 습관을 유지하고, 정기 검진을 권장합니다.\n\n3. 관리 루틴(예시)\n- 하루 2~3회 2분 이상 꼼꼼히 양치하기\n- 치실/치간칫솔 사용(가능하면 매일)\n- 단 음식/탄산 섭취 후 물로 헹구기",
+    "disclaimer": "본 리포트는 입력된 이미지에 대한 AI 스크리닝 결과이며 의료 진단/확진이 아닙니다.\n증상이 지속되거나 악화되면 반드시 의료진 상담 및 검진을 받으시기 바랍니다."
+  }
+}

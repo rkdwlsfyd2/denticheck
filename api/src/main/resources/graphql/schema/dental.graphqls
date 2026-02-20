@@ -1,0 +1,66 @@
+type Dental {
+  id: ID!
+  name: String!
+  address: String
+  phone: String
+  description: String
+  latitude: Float
+  longitude: Float
+  homepageUrl: String
+  ratingAvg: Float
+  ratingCount: Int
+  isLiked: Boolean
+  createdAt: String
+  updatedAt: String
+}
+
+type PageInfo {
+  currentPage: Int
+  totalPages: Int
+  totalElements: Int
+}
+
+type DentalPage {
+  content: [Dental]
+  pageInfo: PageInfo
+}
+
+extend type Query {
+  allDentals: [Dental]
+  searchDentals(
+    latitude: Float!
+    longitude: Float!
+    radius: Float = 5.0
+    page: Int = 0
+    size: Int = 10
+  ): DentalPage
+  myFavoriteDentals: [Dental]
+}
+
+type Review {
+    id: ID!
+    rating: Int!
+    title: String
+    content: String!
+    isAnonymous: Boolean
+    createdAt: String
+    updatedAt: String
+}
+
+extend type Dental {
+    reviews: [Review]
+}
+
+extend type Mutation {
+    createReview(
+        dentalId: ID!
+        rating: Int!
+        content: String!
+        tags: [String]
+        isAnonymous: Boolean = false
+    ): Review
+
+    toggleDentalLike(dentalId: ID!): Boolean
+
+    deleteReview(reviewId: ID!): Boolean
+}

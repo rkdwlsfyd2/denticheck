@@ -7,9 +7,16 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public interface JwtService {
     JWTResponseDTO cookie2Header(HttpServletRequest request, HttpServletResponse response);
-    JWTResponseDTO refreshRotate(RefreshRequestDTO dto);
+
+    JWTResponseDTO refreshRotate(RefreshRequestDTO dto, HttpServletResponse response);
+
+    JWTResponseDTO devLogin(HttpServletResponse response);
+
     void addRefresh(String username, String refreshToken);
+
     Boolean existRefresh(String refreshToken);
+
     void removeRefresh(String refreshToken);
+
     void removeRefreshUser(String username);
 }

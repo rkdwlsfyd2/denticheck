@@ -1,29 +1,33 @@
 spring:
-  security:
-    ### OAuth2 ###
-    oauth2:
-      client:
-        registration:
-          google:
-            client-name: Google
-            redirect-uri: http://localhost:8080/oauth2/callback/google
-            authorization-grant-type: authorization_code
-            scope: profile, email
-            client-id: ${GOOGLE_CLIENT_ID:1021358190527-5pvv06ji3j626itofgsndt8cvf4q6nal.apps.googleusercontent.com}
-            client-secret: ${GOOGLE_CLIENT_SECRET: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}
+    security:
+        oauth2:
+            client:
+                registration:
+                    google:
+                        client-name: Google
+                        redirect-uri: http://localhost:8080/oauth2/callback/google
+                        authorization-grant-type: authorization_code
+                        scope: profile, email
+                        client-id: ${GOOGLE_CLIENT_ID:1021358190527-5pvv06ji3j626itofgsndt8cvf4q6nal.apps.googleusercontent.com}
+                        client-secret: ${GOOGLE_CLIENT_SECRET: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}
 google:
-  mobile:
-    allowed-audiences:
-      - "1021358190527-k664ga1ctlhjhe7kpkt7o8765s21n4lt.apps.googleusercontent.com"
-      - "1021358190527-olr95e805qqqd53kffu5v33gpm4um7ad.apps.googleusercontent.com"
+    mobile:
+        allowed-audiences:
+            - "1021358190527-k664ga1ctlhjhe7kpkt7o8765s21n4lt.apps.googleusercontent.com"
+            - "1021358190527-olr95e805qqqd53kffu5v33gpm4um7ad.apps.googleusercontent.com"
+            - "1021358190527-5pvv06ji3j626itofgsndt8cvf4q6nal.apps.googleusercontent.com" # Web Client ID
 admin:
-  web:
-    # TODO: 운영 관리자 웹 refreshToken JWT을 받을 주소.  Cookie <- "refreshToken" : refreshToken
-    login-success-redirect: "http://localhost:5173/cookie"
-    refresh-cookie-max-age-seconds: 300
-    refresh-cookie-secure: false
+    web:
+        # TODO: 운영 관리자 웹 refreshToken JWT을 받을 주소.  Cookie <- "refreshToken" : refreshToken
+        login-success-redirect: "http://localhost:5173/auth/callback"
+        refresh-cookie-max-age: 300s
+        refresh-cookie-secure: true
+        refresh-cookie-httponly: true
 
 app:
-  auth:
-    # 콤마(,)로 구분된 관리자 이메일 목록
-    admin-emails: "dkzlshzl99@gmail.com,test-admin@gmail.com"
+    auth:
+        # 콤마(,)로 구분된 관리자 이메일 목록
+        admin-emails: "dkzlshzl99@gmail.com,test-admin@gmail.com,wjdfbsdl4399@gmail.com"
+
+kakao:
+    rest-api-key: ${KAKAO_REST_API_KEY:YOUR_KAKAO_REST_API_KEY_HERE}

@@ -1,0 +1,412 @@
+package com.denticheck.api.domain.community.service.impl;
+
+import com.denticheck.api.domain.community.dto.CommunityPostDto;
+import com.denticheck.api.domain.community.dto.PostLikeResultDto;
+import com.denticheck.api.domain.admin.entity.PartnerProduct;
+import com.denticheck.api.domain.admin.repository.PartnerProductRepository;
+import com.denticheck.api.domain.community.entity.CommunityPostDentalEntity;
+import com.denticheck.api.domain.community.entity.CommunityPostEntity;
+import com.denticheck.api.domain.community.entity.CommunityPostImageEntity;
+import com.denticheck.api.domain.community.entity.CommunityPostLikeEntity;
+import com.denticheck.api.domain.community.entity.CommunityPostProductEntity;
+import com.denticheck.api.domain.community.repository.CommunityPostDentalRepository;
+import com.denticheck.api.domain.community.repository.CommunityPostImageRepository;
+import com.denticheck.api.domain.community.repository.CommunityPostLikeRepository;
+import com.denticheck.api.domain.community.repository.CommunityPostProductRepository;
+import com.denticheck.api.domain.community.repository.CommunityPostRepository;
+import com.denticheck.api.domain.community.service.CommunityImageUploadService;
+import com.denticheck.api.domain.community.service.CommunityPostService;
+import com.denticheck.api.domain.dental.entity.DentalEntity;
+import com.denticheck.api.domain.dental.repository.DentalRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+public class CommunityPostServiceImpl implements CommunityPostService {
+
+    private final CommunityPostRepository communityPostRepository;
+    private final CommunityPostLikeRepository communityPostLikeRepository;
+    private final CommunityPostImageRepository communityPostImageRepository;
+    private final CommunityPostDentalRepository communityPostDentalRepository;
+    private final CommunityPostProductRepository communityPostProductRepository;
+    private final CommunityImageUploadService communityImageUploadService;
+    private final DentalRepository dentalRepository;
+    private final PartnerProductRepository partnerProductRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommunityPostDto> findAll() {
+        List<CommunityPostEntity> entities = communityPostRepository.findAllWithDentals();
+        if (entities.isEmpty())
+            return new ArrayList<>();
+        List<UUID> ids = entities.stream().map(CommunityPostEntity::getId).toList();
+        Map<UUID, List<String>> imagesByPostId = loadImagesByPostIds(ids);
+        return entities.stream()
+                .map(e -> toDto(e, null, null, imagesByPostId.getOrDefault(e.getId(), Collections.emptyList())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommunityPostDto> findAll(int limit, int offset, String postType) {
+        int safeLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+        int safeOffset = Math.max(0, offset);
+        String normalizedType = (postType == null || postType.isEmpty() || "all".equalsIgnoreCase(postType)) ? null
+                : postType;
+        List<UUID> ids = (normalizedType == null)
+                ? communityPostRepository.findIdsOrderByCreatedAtDesc(PageRequest.of(safeOffset / safeLimit, safeLimit))
+                : communityPostRepository.findIdsOrderByCreatedAtDescWithPostType(
+                        PageRequest.of(safeOffset / safeLimit, safeLimit), normalizedType);
+        if (ids.isEmpty())
+            return new ArrayList<>();
+        List<CommunityPostEntity> entities = communityPostRepository.findAllWithDentalsByIdIn(ids);
+        Map<UUID, List<String>> imagesByPostId = loadImagesByPostIds(ids);
+        Map<UUID, Integer> order = new HashMap<>();
+        for (int i = 0; i < ids.size(); i++)
+            order.put(ids.get(i), i);
+        return entities.stream()
+                .sorted(Comparator.comparingInt(e -> order.getOrDefault(e.getId(), 0)))
+                .map(e -> toDto(e, null, null, imagesByPostId.getOrDefault(e.getId(), Collections.emptyList())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommunityPostDto> findLikedByUser(UUID userId, int limit, int offset) {
+        int safeLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+        int safeOffset = Math.max(0, offset);
+        Pageable pageable = PageRequest.of(safeOffset / safeLimit, safeLimit);
+        List<UUID> ids = communityPostLikeRepository.findPostIdsByUserIdOrderByPostCreatedAtDesc(userId, pageable);
+        if (ids.isEmpty())
+            return new ArrayList<>();
+        List<CommunityPostEntity> entities = communityPostRepository.findAllWithDentalsByIdIn(ids);
+        Map<UUID, List<String>> imagesByPostId = loadImagesByPostIds(ids);
+        Map<UUID, Integer> order = new HashMap<>();
+        for (int i = 0; i < ids.size(); i++)
+            order.put(ids.get(i), i);
+        return entities.stream()
+                .sorted(Comparator.comparingInt(e -> order.getOrDefault(e.getId(), 0)))
+                .map(e -> toDto(e, null, null, imagesByPostId.getOrDefault(e.getId(), Collections.emptyList())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommunityPostDto> findByAuthorName(String authorName, int limit, int offset) {
+        if (authorName == null || authorName.isBlank()) {
+            return new ArrayList<>();
+        }
+        int safeLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+        int safeOffset = Math.max(0, offset);
+        Pageable pageable = PageRequest.of(safeOffset / safeLimit, safeLimit);
+        List<UUID> ids = communityPostRepository.findIdsByAuthorNameOrderByCreatedAtDesc(pageable, authorName.trim());
+        if (ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<CommunityPostEntity> entities = communityPostRepository.findAllWithDentalsByIdIn(ids);
+        Map<UUID, List<String>> imagesByPostId = loadImagesByPostIds(ids);
+        Map<UUID, Integer> order = new HashMap<>();
+        for (int i = 0; i < ids.size(); i++) {
+            order.put(ids.get(i), i);
+        }
+        return entities.stream()
+                .sorted(Comparator.comparingInt(e -> order.getOrDefault(e.getId(), 0)))
+                .map(e -> toDto(e, null, null, imagesByPostId.getOrDefault(e.getId(), Collections.emptyList())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CommunityPostDto> findById(UUID postId) {
+        return communityPostRepository.findByIdWithDentals(postId)
+                .map(e -> {
+                    List<String> images = loadImagesByPostIds(List.of(postId)).getOrDefault(postId,
+                            Collections.emptyList());
+                    return toDto(e, null, null, images);
+                });
+    }
+
+    @Override
+    @Transactional
+    public CommunityPostDto create(String authorName, String content, String postType, List<UUID> dentalIds,
+            List<Long> productIds, List<String> imageUrls) {
+        String normalizedType = (postType == null || postType.isEmpty() || "all".equalsIgnoreCase(postType)) ? null
+                : postType;
+        CommunityPostEntity entity = CommunityPostEntity.builder()
+                .authorName(authorName)
+                .content(content)
+                .postType(normalizedType)
+                .likeCount(0)
+                .commentCount(0)
+                .build();
+        CommunityPostEntity saved = communityPostRepository.save(entity);
+
+        List<DentalEntity> tagDentals = null;
+        if (dentalIds != null && !dentalIds.isEmpty()) {
+            List<UUID> distinctIds = dentalIds.stream().distinct().toList();
+            List<DentalEntity> existingDentals = dentalRepository.findAllById(distinctIds);
+            Set<UUID> existingIds = existingDentals.stream().map(DentalEntity::getId).collect(Collectors.toSet());
+            if (existingIds.size() != distinctIds.size()) {
+                throw new IllegalArgumentException(
+                        "선택한 치과 중 등록되지 않은 항목이 있어요. 치과 목록을 다시 불러온 뒤 다시 선택해 주세요.");
+            }
+            tagDentals = existingDentals;
+            List<CommunityPostDentalEntity> links = distinctIds.stream()
+                    .map(dentalId -> {
+                        CommunityPostDentalEntity link = CommunityPostDentalEntity.builder()
+                                .postId(saved.getId())
+                                .dentalId(dentalId)
+                                .build();
+                        link.setPost(saved);
+                        return link;
+                    })
+                    .collect(Collectors.toList());
+            saved.getDentalLinks().addAll(links);
+            communityPostRepository.save(saved);
+        }
+
+        List<PartnerProduct> tagProducts = null;
+        if (productIds != null && !productIds.isEmpty()) {
+            List<Long> distinctProductIds = productIds.stream().distinct().toList();
+            List<PartnerProduct> existingProducts = partnerProductRepository.findAllById(distinctProductIds);
+            Set<Long> existingProductIds = existingProducts.stream().map(PartnerProduct::getId).collect(Collectors.toSet());
+            if (existingProductIds.size() != distinctProductIds.size()) {
+                throw new IllegalArgumentException(
+                        "선택한 상품 중 등록되지 않은 항목이 있어요. 상품 목록을 다시 불러온 뒤 다시 선택해 주세요.");
+            }
+            tagProducts = existingProducts;
+            List<CommunityPostProductEntity> productLinks = distinctProductIds.stream()
+                    .map(productId -> {
+                        CommunityPostProductEntity link = CommunityPostProductEntity.builder()
+                                .postId(saved.getId())
+                                .productId(productId)
+                                .build();
+                        link.setPost(saved);
+                        return link;
+                    })
+                    .collect(Collectors.toList());
+            saved.getProductLinks().addAll(productLinks);
+            communityPostRepository.save(saved);
+        }
+
+        List<String> savedImageUrls = new ArrayList<>();
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            int maxImages = Math.min(imageUrls.size(), 4);
+            for (int i = 0; i < maxImages; i++) {
+                String url = imageUrls.get(i);
+                if (url == null || url.isBlank())
+                    continue;
+                CommunityPostImageEntity img = CommunityPostImageEntity.builder()
+                        .post(saved)
+                        .imageUrl(url.trim())
+                        .sortOrder(i)
+                        .build();
+                saved.getImageLinks().add(img);
+                savedImageUrls.add(img.getImageUrl());
+            }
+            communityPostRepository.save(saved);
+        }
+
+        return toDto(saved, tagDentals, tagProducts, savedImageUrls);
+    }
+
+    @Override
+    @Transactional
+    public CommunityPostDto updateIfAuthor(UUID postId, String authorName, String content, String postType,
+            List<UUID> dentalIds, List<Long> productIds, List<String> imageUrls) {
+        CommunityPostEntity post = communityPostRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        if (!authorName.equals(post.getAuthorName())) {
+            throw new AccessDeniedException("본인 게시글만 수정할 수 있습니다.");
+        }
+        String normalizedType = (postType == null || postType.isEmpty() || "all".equalsIgnoreCase(postType)) ? null
+                : postType;
+        post.setContent(content != null ? content : "");
+        post.setPostType(normalizedType);
+
+        List<String> oldImageUrls = loadImagesByPostIds(List.of(postId)).getOrDefault(postId, Collections.emptyList());
+
+        // 기존 링크를 DB에서 명시적으로 삭제 (clear()만으로는 중복 키 에러 발생 가능)
+        communityPostDentalRepository.deleteByPostId(postId);
+        post.getDentalLinks().clear();
+        if (dentalIds != null && !dentalIds.isEmpty()) {
+            List<UUID> distinctIds = dentalIds.stream().distinct().toList();
+            List<DentalEntity> existingDentals = dentalRepository.findAllById(distinctIds);
+            Set<UUID> existingIds = existingDentals.stream().map(DentalEntity::getId).collect(Collectors.toSet());
+            if (existingIds.size() != distinctIds.size()) {
+                throw new IllegalArgumentException(
+                        "선택한 치과 중 등록되지 않은 항목이 있어요. 치과 목록을 다시 불러온 뒤 다시 선택해 주세요.");
+            }
+            List<CommunityPostDentalEntity> links = distinctIds.stream()
+                    .map(dentalId -> {
+                        CommunityPostDentalEntity link = CommunityPostDentalEntity.builder()
+                                .postId(post.getId())
+                                .dentalId(dentalId)
+                                .build();
+                        link.setPost(post);
+                        return link;
+                    })
+                    .collect(Collectors.toList());
+            post.getDentalLinks().addAll(links);
+        }
+
+        // 기존 상품 링크를 DB에서 명시적으로 삭제
+        communityPostProductRepository.deleteByPostId(postId);
+        post.getProductLinks().clear();
+        if (productIds != null && !productIds.isEmpty()) {
+            List<Long> distinctProductIds = productIds.stream().distinct().toList();
+            List<PartnerProduct> existingProducts = partnerProductRepository.findAllById(distinctProductIds);
+            Set<Long> existingProductIds = existingProducts.stream().map(PartnerProduct::getId).collect(Collectors.toSet());
+            if (existingProductIds.size() != distinctProductIds.size()) {
+                throw new IllegalArgumentException(
+                        "선택한 상품 중 등록되지 않은 항목이 있어요. 상품 목록을 다시 불러온 뒤 다시 선택해 주세요.");
+            }
+            List<CommunityPostProductEntity> productLinks = distinctProductIds.stream()
+                    .map(productId -> {
+                        CommunityPostProductEntity link = CommunityPostProductEntity.builder()
+                                .postId(post.getId())
+                                .productId(productId)
+                                .build();
+                        link.setPost(post);
+                        return link;
+                    })
+                    .collect(Collectors.toList());
+            post.getProductLinks().addAll(productLinks);
+        }
+
+        post.getImageLinks().clear();
+        List<String> newImageUrls = new ArrayList<>();
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            int maxImages = Math.min(imageUrls.size(), 4);
+            for (int i = 0; i < maxImages; i++) {
+                String url = imageUrls.get(i);
+                if (url == null || url.isBlank()) continue;
+                CommunityPostImageEntity img = CommunityPostImageEntity.builder()
+                        .post(post)
+                        .imageUrl(url.trim())
+                        .sortOrder(i)
+                        .build();
+                post.getImageLinks().add(img);
+                newImageUrls.add(img.getImageUrl());
+            }
+        }
+        CommunityPostEntity saved = communityPostRepository.save(post);
+        for (String oldUrl : oldImageUrls) {
+            if (!newImageUrls.contains(oldUrl)) {
+                communityImageUploadService.deleteByUrl(oldUrl);
+            }
+        }
+        return toDto(saved, null, null, newImageUrls);
+    }
+
+    @Override
+    @Transactional
+    public void deleteIfAuthor(UUID postId, String authorName) {
+        CommunityPostEntity post = communityPostRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        if (!authorName.equals(post.getAuthorName())) {
+            throw new AccessDeniedException("본인 게시글만 삭제할 수 있습니다.");
+        }
+        List<String> imageUrls = communityPostImageRepository.findByPost_IdInOrderBySortOrderAsc(List.of(postId))
+                .stream()
+                .map(CommunityPostImageEntity::getImageUrl)
+                .toList();
+        communityPostRepository.delete(post);
+        imageUrls.forEach(communityImageUploadService::deleteByUrl);
+    }
+
+    @Override
+    @Transactional
+    public PostLikeResultDto toggleLike(UUID userId, UUID postId) {
+        CommunityPostEntity post = communityPostRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        boolean wasLiked = communityPostLikeRepository.existsByUserIdAndPostId(userId, postId);
+        if (wasLiked) {
+            communityPostLikeRepository.deleteByUserIdAndPostId(userId, postId);
+            post.setLikeCount(Math.max(0, (post.getLikeCount() == null ? 0 : post.getLikeCount()) - 1));
+        } else {
+            communityPostLikeRepository.save(CommunityPostLikeEntity.builder()
+                    .userId(userId)
+                    .postId(postId)
+                    .build());
+            post.setLikeCount((post.getLikeCount() == null ? 0 : post.getLikeCount()) + 1);
+        }
+        communityPostRepository.save(post);
+        return PostLikeResultDto.builder()
+                .isLiked(!wasLiked)
+                .likeCount(post.getLikeCount() == null ? 0 : post.getLikeCount())
+                .build();
+    }
+
+    private Map<UUID, List<String>> loadImagesByPostIds(List<UUID> postIds) {
+        if (postIds == null || postIds.isEmpty())
+            return new HashMap<>();
+        List<CommunityPostImageEntity> list = communityPostImageRepository.findByPost_IdInOrderBySortOrderAsc(postIds);
+        Map<UUID, List<String>> out = new HashMap<>();
+        for (CommunityPostImageEntity img : list) {
+            UUID postId = img.getPost().getId();
+            out.computeIfAbsent(postId, k -> new ArrayList<>()).add(img.getImageUrl());
+        }
+        return out;
+    }
+
+    /** 태그는 entity의 dentalLinks/productLinks에서 로드 (목록 조회 등) */
+    private CommunityPostDto toDto(CommunityPostEntity e, List<DentalEntity> tagDentals, List<PartnerProduct> tagProducts, List<String> images) {
+        String author = e.getAuthorName() != null ? e.getAuthorName() : "";
+        String initial = author.isEmpty() ? "" : author.substring(0, 1);
+        List<CommunityPostDto.PostTagDto> tags = new ArrayList<>();
+        // 치과 태그
+        if (tagDentals != null && !tagDentals.isEmpty()) {
+            tagDentals.forEach(dental -> tags.add(new CommunityPostDto.PostTagDto("hospital",
+                    dental.getName() != null ? dental.getName() : "", dental.getId().toString())));
+        } else if (e.getDentalLinks() != null) {
+            e.getDentalLinks().stream()
+                    .map(CommunityPostDentalEntity::getDental)
+                    .filter(d -> d != null)
+                    .forEach(dental -> tags.add(new CommunityPostDto.PostTagDto("hospital",
+                            dental.getName() != null ? dental.getName() : "", dental.getId().toString())));
+        }
+        // 상품 태그
+        if (tagProducts != null && !tagProducts.isEmpty()) {
+            tagProducts.forEach(product -> tags.add(new CommunityPostDto.PostTagDto("product",
+                    product.getName() != null ? product.getName() : "", String.valueOf(product.getId()))));
+        } else if (e.getProductLinks() != null) {
+            e.getProductLinks().stream()
+                    .map(CommunityPostProductEntity::getProduct)
+                    .filter(p -> p != null)
+                    .forEach(product -> tags.add(new CommunityPostDto.PostTagDto("product",
+                            product.getName() != null ? product.getName() : "", String.valueOf(product.getId()))));
+        }
+        return CommunityPostDto.builder()
+                .id(e.getId())
+                .author(author)
+                .authorInitial(initial)
+                .content(e.getContent() != null ? e.getContent() : "")
+                .images(images != null ? images : Collections.emptyList())
+                .tags(tags)
+                .likes(e.getLikeCount() != null ? e.getLikeCount() : 0)
+                .comments(e.getCommentCount() != null ? e.getCommentCount() : 0)
+                .createdAt(e.getCreatedAt() != null
+                        ? e.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toString()
+                        : null)
+                .postType(e.getPostType())
+                .build();
+    }
+}
