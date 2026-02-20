@@ -26,7 +26,7 @@ spring:
 # If running API in IDE, this connects to localhost:8000 (where AI service is exposed)
 ai:
     client:
-        url: http://localhost:8000
+        url: ${AI_CLIENT_URL:${AI_SERVICE_URL:http://localhost:8000}}
         timeout: 5000
     analyze:
         timeout: 3m

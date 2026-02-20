@@ -178,6 +178,7 @@
             - DB_NAME=denticheck
             - DB_USERNAME=admin
             - DB_PASSWORD=admin_password
+            - AI_CLIENT_URL=http://ai:8000
             - AI_SERVICE_URL=http://ai:8000
             - OLLAMA_ENABLED=${OLLAMA_ENABLED:-false}
             - OLLAMA_BASE_URL=http://ollama:11434
