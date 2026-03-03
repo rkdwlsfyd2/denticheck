@@ -97,7 +97,7 @@ Vector DB    LLM (llama3.2:3b)
 - 규모
   - 탐지 클래스: `caries`, `tartar`, `oral_cancer`, `normal` (총 4개)
   - 지식 항목: 323개 (`"title"` 패턴 카운트 기준)
-  - 탐지 학습 샘플 수: [TBD]
+  - 탐지 학습 샘플 수: [3만장]
 - 전처리/라벨링
   - RAG: 문서 분할(`chunk_size=1000`, `chunk_overlap=100`) 후 임베딩 저장
   - 탐지: 서비스 레벨 라벨 정규화(`cavity -> caries` 등)
